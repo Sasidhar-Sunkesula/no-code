@@ -3,7 +3,7 @@ import type { Template } from "@repo/common/types";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 
 export default function ProjectInfo() {
     const [loading, setLoading] = useState(true);
