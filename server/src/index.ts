@@ -1,3 +1,4 @@
+import type { GenerateContentStreamResult } from "@google/generative-ai";
 import { chatSchema, promptSchema } from "@repo/common/zod";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -7,9 +8,8 @@ import { sseMiddleware } from "./middlewares/sseMiddleware";
 import { enhancerPrompt } from "./prompts/enhancerPrompt";
 import { getTemplates, parseSelectedTemplate, starterTemplateSelectionPrompt } from "./prompts/starterTemplateSelection";
 import { getSystemPrompt } from "./prompts/systemPrompt";
-import { getUIPrompt } from "./prompts/uiPrompt";
 import { callLLM } from "./utils/callLLM";
-import type { GenerateContentStreamResult } from "@google/generative-ai";
+import prisma from "@repo/db/client";
 dotenv.config();
 
 const app = express();
@@ -45,19 +45,51 @@ app.post("/api/template", async (req, res) => {
       // Indicates that LLM hasn't generated any template name. It doesn't happen mostly. 
       throw new Error("Error occurred while identifying a template");
     }
-    if (templateName === "blank") {
-      res.json({ template: "blank" });
+    const newProject = await prisma.project.create({
+      data: {
+        name: prompt,
+        status: "NEW",
+        userId: "cm59k02420000ff6m7t1a7ret"
+      }
+    })
+    if (templateName !== "blank") {
+      const temResp = await getTemplates(templateName);
+      if (temResp) {
+        const { assistantMessage, userMessage } = temResp;
+        res.json({
+          projectId: newProject.id,
+          projectName: newProject.name,
+          enhancedPrompt,
+          assistantMessage,
+          userMessage
+        });
+        return;
+      }
+    } else {
+      res.json({
+        projectId: newProject.id,
+        projectName: newProject.name,
+        enhancedPrompt
+      });
       return;
     }
-    const allFiles = await getTemplates(templateName);
-    if (!allFiles) {
-      // Indicates that LLM has returned an incorrect template name.
-      throw new Error("Error while getting the project files. Please try again!")
-    }
-    res.json({
-      template: allFiles,
-      uiPrompt: getUIPrompt(),
-    });
+    // if (!temResp) {
+    //   // Indicates that LLM has returned an incorrect template name.
+    //   throw new Error("Error while getting the project files. Please try again!")
+    // }
+    // const newProject = await prisma.project.create({
+    //   data: {
+    //     name: prompt,
+    //     status: "NEW",
+    //     userId: "cm59k02420000ff6m7t1a7ret"
+    //   }
+    // })
+    // res.json({
+    //   projectId: newProject.id,
+    //   projectName: newProject.name,
+    //   files: allFiles,
+    //   // uiPrompt: getUIPrompt(),
+    // });
   } catch (error) {
     res.status(500).json({
       msg:
@@ -80,7 +112,7 @@ app.post("/api/chat", sseMiddleware, async (req, res) => {
       messages: validation.data,
       systemPrompt: getSystemPrompt()
     }) as GenerateContentStreamResult;
-    
+
     for await (const chunk of result.stream) {
       const chunkText = chunk.text ? chunk.text() : chunk; // Ensure `chunk.text()` exists
       res.write(`data: ${chunkText}\n\n`);

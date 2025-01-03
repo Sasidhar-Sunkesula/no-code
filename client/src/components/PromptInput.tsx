@@ -3,9 +3,9 @@ import { PromptSchema } from "@repo/common/zod";
 import { CornerDownLeft } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { useNavigate } from "react-router";
 
 export function PromptInput() {
     const [input, setInput] = useState("");
@@ -14,7 +14,7 @@ export function PromptInput() {
     async function handleSubmit() {
         const body: PromptSchema = { prompt: input };
         try {
-            const response = await fetch(`${API_URL}/api/new`, {
+            const response = await fetch(`${API_URL}/api/template`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -25,7 +25,14 @@ export function PromptInput() {
             if (!response.ok) {
                 throw new Error(result.msg);
             }
-            navigate(`/project/${result.projectId}`);
+            navigate(`/project/${result.projectId}`, {
+                state: {
+                    projectName: result.projectName,
+                    enhancedPrompt: result.enhancedPrompt,
+                    assistantMessage: result.assistantMessage,
+                    userMessage: result.userMessage
+                }
+            });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Error while getting files"
             toast.error(errorMessage)

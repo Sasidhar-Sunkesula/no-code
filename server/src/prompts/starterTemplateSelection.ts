@@ -153,86 +153,85 @@ export async function getTemplates(templateName: string) {
   // exclude    .bolt
   filteredFiles = filteredFiles.filter((x) => x.path.startsWith('.bolt') == false);
 
-  return filteredFiles;
   // check for ignore file in .bolt folder
-  //   const templateIgnoreFile = files.find((x) => x.path.startsWith('.bolt') && x.name == 'ignore');
+  const templateIgnoreFile = files.find((x) => x.path.startsWith('.bolt') && x.name == 'ignore');
 
-  //   const filesToImport = {
-  //     files: filteredFiles,
-  //     ignoreFile: filteredFiles,
-  //   };
+  const filesToImport = {
+    files: filteredFiles,
+    ignoreFile: filteredFiles,
+  };
 
-  //   if (templateIgnoreFile) {
-  // redacting files specified in ignore file
-  //     const ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
-  //     const ig = ignore().add(ignorePatterns);
+  if (templateIgnoreFile) {
+    // redacting files specified in ignore file
+    const ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
+    const ig = ignore().add(ignorePatterns);
 
-  // filteredFiles = filteredFiles.filter(x => !ig.ignores(x.path))
-  //     const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.path));
+    filteredFiles = filteredFiles.filter(x => !ig.ignores(x.path))
+    const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.path));
 
-  //     filesToImport.files = filteredFiles;
-  //     filesToImport.ignoreFile = ignoredFiles;
-  //   }
+    filesToImport.files = filteredFiles;
+    filesToImport.ignoreFile = ignoredFiles;
+  }
 
-  //   const assistantMessage = `
-  // <boltArtifact id="imported-files" title="Importing Starter Files" type="bundled">
-  // ${filesToImport.files
-  //   .map(
-  //     (file) =>
-  //       `<boltAction type="file" filePath="${file.path}">
-  // ${file.content}
-  // </boltAction>`,
-  //   )
-  //   .join('\n')}
-  // </boltArtifact>
-  // `;
-  //   let userMessage = ``;
-  //   const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name === 'prompt');
+  const assistantMessage = `
+  <boltArtifact id="imported-files" title="Importing Starter Files" type="bundled">
+  ${filesToImport.files
+      .map(
+        (file) =>
+          `<boltAction type="file" filePath="${file.path}">
+  ${file.content}
+  </boltAction>`,
+      )
+      .join('\n')}
+  </boltArtifact>
+  `;
+  let userMessage = ``;
+  const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name === 'prompt');
 
-  //   if (templatePromptFile) {
-  //     userMessage = `
-  // TEMPLATE INSTRUCTIONS:
-  // ${templatePromptFile.content}
+  if (templatePromptFile) {
+    userMessage = `
+  TEMPLATE INSTRUCTIONS:
+  ${templatePromptFile.content}
 
-  // IMPORTANT: Do not Forget to install the dependencies before running the app
-  // ---
-  // `;
-  //   }
+  IMPORTANT: Do not Forget to install the dependencies before running the app
+  ---
+  `;
+  }
 
-  //   if (filesToImport.ignoreFile.length > 0) {
-  //     userMessage =
-  //       userMessage +
-  //       `
-  // STRICT FILE ACCESS RULES - READ CAREFULLY:
+  if (filesToImport.ignoreFile.length > 0) {
+    userMessage =
+      userMessage +
+      `
+  STRICT FILE ACCESS RULES - READ CAREFULLY:
 
-  // The following files are READ-ONLY and must never be modified:
-  // ${filesToImport.ignoreFile.map((file) => `- ${file.path}`).join('\n')}
+  The following files are READ-ONLY and must never be modified:
+  ${filesToImport.ignoreFile.map((file) => `- ${file.path}`).join('\n')}
 
-  // Permitted actions:
-  // ✓ Import these files as dependencies
-  // ✓ Read from these files
-  // ✓ Reference these files
+  Permitted actions:
+  ✓ Import these files as dependencies
+  ✓ Read from these files
+  ✓ Reference these files
 
-  // Strictly forbidden actions:
-  // ❌ Modify any content within these files
-  // ❌ Delete these files
-  // ❌ Rename these files
-  // ❌ Move these files
-  // ❌ Create new versions of these files
-  // ❌ Suggest changes to these files
+  Strictly forbidden actions:
+  ❌ Modify any content within these files
+  ❌ Delete these files
+  ❌ Rename these files
+  ❌ Move these files
+  ❌ Create new versions of these files
+  ❌ Suggest changes to these files
 
-  // Any attempt to modify these protected files will result in immediate termination of the operation.
+  Any attempt to modify these protected files will result in immediate termination of the operation.
 
-  // If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
-  // ---
-  // `;
-  //     userMessage += `
-  // Now that the Template is imported please continue with my original request
-  // `;
-  //   }
+  If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
+  ---
+  `;
+    userMessage += `
+  Now that the Template is imported please continue with my original request
+  `;
+  }
 
-  //   return {
-  //     assistantMessage,
-  //     userMessage,
-  //   };
+  return {
+    assistantMessage,
+    userMessage,
+  };
 }
