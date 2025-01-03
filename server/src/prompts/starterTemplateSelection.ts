@@ -1,5 +1,6 @@
 import ignore from "ignore";
 import { STARTER_TEMPLATES, StarterTemplate } from "../constants";
+import { HeadersInit } from "@repo/common/types";
 
 export const starterTemplateSelectionPrompt = (templates: StarterTemplate[]) => `
 You are an experienced developer who helps people choose the best starter template for their projects.
@@ -45,11 +46,13 @@ Response:
 </example>
 
 Instructions:
-1. For trivial tasks and simple scripts, always recommend the blank template
-2. For more complex projects, recommend templates from the provided list
-3. Follow the exact XML format.
-4. Consider both technical requirements and tags
-5. If no perfect match exists, recommend the closest option
+1. Try to find the framework name from the prompt and use the tags to make a decision.
+2. Do not select based on the order, go through all the templates and tags before making a decision.
+3. For trivial tasks and simple scripts, always recommend the blank template
+4. For more complex projects, recommend templates from the provided list
+5. Follow the exact XML format.
+6. Consider both technical requirements and tags
+7. If no perfect match exists, recommend the closest option
 
 Important: Provide only the selection tags in your response, no additional text. 
 The template name you provide should be from the above provided available list only!
@@ -69,20 +72,32 @@ const getGitHubRepoContent = async (
   path: string = ''
 ): Promise<{ name: string; path: string; content: string }[]> => {
   const baseUrl = 'https://api.github.com';
+  const token = process.env.GITHUB_ACCESS_TOKEN;
+
+  const headers: HeadersInit = {
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  if (token) {
+    headers.Authorization = 'token ' + token;
+  }
   try {
     const response = await fetch(`${baseUrl}/repos/${repoName}/contents/${path}`, {
-      headers: {
-        Accept: 'application/vnd.github.v3+json',
-      },
+      headers: headers,
     });
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`Github Rate Limit Hit!`);
     }
     const data: any = await response.json();
+
     // Return content if it's a file(not an array)
     if (!Array.isArray(data)) {
       if (data.type === "file") {
-        // If it's a file, get its content
+        // If it's a file, get its content and we need to only get content if the data.content is available
+        if (!data.content) {
+          return [];
+        }
         const content = Buffer.from(data.content, 'base64').toString("utf-8");
         return [
           {
@@ -102,11 +117,12 @@ const getGitHubRepoContent = async (
         } else if (item.type === 'file') {
           // Fetch file content
           const fileResponse = await fetch(item.url, {
-            headers: {
-              Accept: 'application/vnd.github.v3+json',
-            },
+            headers: headers,
           });
           const fileData: any = await fileResponse.json();
+          if (!fileData.content) {
+            return [];
+          }
           const content = Buffer.from(fileData.content, "base64").toString("utf-8"); // Decode base64 content
 
           return [
@@ -128,13 +144,12 @@ const getGitHubRepoContent = async (
   }
 }
 
-export async function getTemplates(templateName: string) {
+export async function getTemplates(templateName: string, title?: string) {
   const template = STARTER_TEMPLATES.find((t) => t.name == templateName);
 
   if (!template) {
     return null;
   }
-
   const githubRepo = template.githubRepo;
   const files = await getGitHubRepoContent(githubRepo);
 
@@ -158,7 +173,7 @@ export async function getTemplates(templateName: string) {
 
   const filesToImport = {
     files: filteredFiles,
-    ignoreFile: filteredFiles,
+    ignoreFile: [] as typeof filteredFiles,
   };
 
   if (templateIgnoreFile) {
@@ -166,7 +181,7 @@ export async function getTemplates(templateName: string) {
     const ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
     const ig = ignore().add(ignorePatterns);
 
-    filteredFiles = filteredFiles.filter(x => !ig.ignores(x.path))
+    // filteredFiles = filteredFiles.filter(x => !ig.ignores(x.path))
     const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.path));
 
     filesToImport.files = filteredFiles;
@@ -174,61 +189,69 @@ export async function getTemplates(templateName: string) {
   }
 
   const assistantMessage = `
-  <boltArtifact id="imported-files" title="Importing Starter Files" type="bundled">
-  ${filesToImport.files
+<boltArtifact id="imported-files" title="${title || 'Importing Starter Files'}" type="bundled">
+${filesToImport.files
       .map(
         (file) =>
           `<boltAction type="file" filePath="${file.path}">
-  ${file.content}
-  </boltAction>`,
+${file.content}
+</boltAction>`,
       )
       .join('\n')}
-  </boltArtifact>
-  `;
+</boltArtifact>
+`;
   let userMessage = ``;
-  const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name === 'prompt');
+  const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name == 'prompt');
 
   if (templatePromptFile) {
     userMessage = `
-  TEMPLATE INSTRUCTIONS:
-  ${templatePromptFile.content}
+TEMPLATE INSTRUCTIONS:
+${templatePromptFile.content}
 
-  IMPORTANT: Do not Forget to install the dependencies before running the app
-  ---
-  `;
+IMPORTANT: Do not Forget to install the dependencies before running the app
+---
+`;
   }
 
   if (filesToImport.ignoreFile.length > 0) {
     userMessage =
       userMessage +
       `
-  STRICT FILE ACCESS RULES - READ CAREFULLY:
+STRICT FILE ACCESS RULES - READ CAREFULLY:
 
-  The following files are READ-ONLY and must never be modified:
-  ${filesToImport.ignoreFile.map((file) => `- ${file.path}`).join('\n')}
+The following files are READ-ONLY and must never be modified:
+${filesToImport.ignoreFile.map((file) => `- ${file.path}`).join('\n')}
 
-  Permitted actions:
-  ✓ Import these files as dependencies
-  ✓ Read from these files
-  ✓ Reference these files
+Permitted actions:
+✓ Import these files as dependencies
+✓ Read from these files
+✓ Reference these files
 
-  Strictly forbidden actions:
-  ❌ Modify any content within these files
-  ❌ Delete these files
-  ❌ Rename these files
-  ❌ Move these files
-  ❌ Create new versions of these files
-  ❌ Suggest changes to these files
+Strictly forbidden actions:
+❌ Modify any content within these files
+❌ Delete these files
+❌ Rename these files
+❌ Move these files
+❌ Create new versions of these files
+❌ Suggest changes to these files
 
-  Any attempt to modify these protected files will result in immediate termination of the operation.
+Any attempt to modify these protected files will result in immediate termination of the operation.
 
-  If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
+If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
+---
+`;
+  }
+
+  userMessage += `
+  ---
+  The starter template files have been imported successfully. Based on the original request, please proceed to generate the implementation code for the project. Use the imported files and structure them as needed, adhering to the following constraints:
+  - Only modify the files that are explicitly allowed to be changed.
+  - Create new files where necessary to add features or implement functionality.
+  - Address the project requirements.
+  
+  For example, if this is a TODO app, implement features like task creation, updates, deletion, and filtering in the appropriate files. Provide explanations or comments in the code if decisions are non-trivial.
   ---
   `;
-    userMessage += `
-  Now that the Template is imported please continue with my original request
-  `;
-  }
 
   return {
     assistantMessage,

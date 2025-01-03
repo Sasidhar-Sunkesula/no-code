@@ -3,7 +3,7 @@ import { chatSchema, promptSchema } from "@repo/common/zod";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { PORT, STARTER_TEMPLATES } from "./constants";
+import { STARTER_TEMPLATES } from "./constants";
 import { sseMiddleware } from "./middlewares/sseMiddleware";
 import { enhancerPrompt } from "./prompts/enhancerPrompt";
 import { getTemplates, parseSelectedTemplate, starterTemplateSelectionPrompt } from "./prompts/starterTemplateSelection";
@@ -51,14 +51,13 @@ app.post("/api/template", async (req, res) => {
         status: "NEW",
         userId: "cm59k02420000ff6m7t1a7ret"
       }
-    })
+    });
     if (templateName !== "blank") {
       const temResp = await getTemplates(templateName);
       if (temResp) {
         const { assistantMessage, userMessage } = temResp;
         res.json({
           projectId: newProject.id,
-          projectName: newProject.name,
           enhancedPrompt,
           assistantMessage,
           userMessage
@@ -73,23 +72,6 @@ app.post("/api/template", async (req, res) => {
       });
       return;
     }
-    // if (!temResp) {
-    //   // Indicates that LLM has returned an incorrect template name.
-    //   throw new Error("Error while getting the project files. Please try again!")
-    // }
-    // const newProject = await prisma.project.create({
-    //   data: {
-    //     name: prompt,
-    //     status: "NEW",
-    //     userId: "cm59k02420000ff6m7t1a7ret"
-    //   }
-    // })
-    // res.json({
-    //   projectId: newProject.id,
-    //   projectName: newProject.name,
-    //   files: allFiles,
-    //   // uiPrompt: getUIPrompt(),
-    // });
   } catch (error) {
     res.status(500).json({
       msg:
@@ -106,16 +88,35 @@ app.post("/api/chat", sseMiddleware, async (req, res) => {
     });
     return;
   }
+  const { messages } = validation.data;
   try {
     const result = await callLLM({
       type: "stream",
-      messages: validation.data,
+      messages: messages,
       systemPrompt: getSystemPrompt()
     }) as GenerateContentStreamResult;
 
+    let buffer = ""; // Buffer to accumulate chunks
+    let interval = 100; // Send data every 100ms
+    // Set an interval to send data every 100ms
+    const sendInterval = setInterval(() => {
+      if (buffer.trim() !== "") {
+        res.write(`data: ${JSON.stringify({ chunk: buffer })}\n\n`); // Send accumulated data
+        buffer = ""; // Clear buffer after sending
+      }
+    }, interval);
+
     for await (const chunk of result.stream) {
-      const chunkText = chunk.text ? chunk.text() : chunk; // Ensure `chunk.text()` exists
-      res.write(`data: ${chunkText}\n\n`);
+      const chunkText = chunk.text ? chunk.text() : ""; // Get chunk text safely
+      // Accumulate the chunk in the buffer
+      buffer += chunkText;
+    }
+    // Clear the interval when the stream ends
+    clearInterval(sendInterval);
+
+    // Ensure no leftover data after stream ends
+    if (buffer.trim() !== "") {
+      res.write(`data: ${JSON.stringify({ chunk: buffer })}\n\n`);
     }
     res.end();
   } catch (error) {
@@ -126,6 +127,7 @@ app.post("/api/chat", sseMiddleware, async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
