@@ -1,0 +1,28 @@
+import { BasicSetupOptions } from "@uiw/react-codemirror";
+
+export const codeEditorOptions = {
+    lineNumbers: true,
+    highlightActiveLineGutter: true,
+    foldGutter: true,
+    dropCursor: true,
+    allowMultipleSelections: true,
+    indentOnInput: true,
+    bracketMatching: true,
+    closeBrackets: true,
+    autocompletion: true,
+    rectangularSelection: true,
+    crosshairCursor: true,
+    highlightActiveLine: true,
+    highlightSelectionMatches: true,
+    closeBracketsKeymap: true,
+    searchKeymap: true,
+    foldKeymap: true,
+    completionKeymap: true,
+    lintKeymap: true,
+    highlightSpecialChars: true,
+    history: true,
+    drawSelection: true,
+    syntaxHighlighting: true,
+    defaultKeymap: true,
+    historyKeymap: true,
+} satisfies BasicSetupOptions;

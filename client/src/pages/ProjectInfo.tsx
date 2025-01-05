@@ -1,4 +1,8 @@
+import { FileExplorer } from "@/components/FileExplorer";
+import { buildHierarchy } from "@/lib/buildHierarchy";
 import { API_URL } from "@/lib/constants";
+import { parseXML } from "@/lib/parseXML";
+import type { ParsedXML } from "@repo/common/types";
 import { ChatMessages } from "@repo/common/zod";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,113 +12,89 @@ import { SSE } from "sse.js";
 
 export default function ProjectInfo() {
     const [loading, setLoading] = useState(true);
+    const [parsedXML, setParsedXML] = useState<ParsedXML | null>(null);
     const { projectId } = useParams();
     const location = useLocation();
-    const { projectName, enhancedPrompt, assistantMessage, userMessage } = location.state as {
-        projectName: string,
+    const { enhancedPrompt, assistantMessage, userMessage } = location.state as {
         enhancedPrompt: string,
         assistantMessage: string,
         userMessage: string
-    }
+    };
 
     useEffect(() => {
-        async function streamCode() {
+        let source: SSE | null = null;
+        let buffer = "";
+        let parseTimeout: NodeJS.Timeout | null = null;
+
+        function streamCode() {
             const reqBody: ChatMessages = [
-                {
-                    role: 'user',
-                    parts: [{ text: enhancedPrompt }],
-                },
-                {
-                    role: 'model',
-                    parts: [{ text: assistantMessage }],
-                },
-                {
-                    role: 'user',
-                    parts: [{ text: userMessage }],
-                },
-                // {
-                //     role: "user",
-                //     parts: [
-                //         {
-                //             text: `
-                //             # Project Files
-                //             The following is a list of all project files and their complete contents that are currently visible and accessible to you.
-                //             ${files.map(file => `
-                //                     Path: ${file.path}
-                //                     Content: ${file.content}
-                //                 `).join('\n')}
-                //             Here is a list of files that exist on the file system but are not being shown to you:
-                //               - package-lock.json
-                //         `
-                //         },
-                //     ]
-                // },
-                // {
-                //     role: "user",
-                //     parts: [{ text: uiPrompt }]
-                // }, {
-                //     role: "user",
-                //     parts: [
-                //         {
-                //             text: `
-                //             ${projectName}
-                //             AGENDA: Generate the code for the project
-                //             Here is a list of all files that have been modified since the start of the conversation.
-                //             This information serves as the true contents of these files!
+                { role: 'user', parts: [{ text: enhancedPrompt }] },
+                { role: 'model', parts: [{ text: assistantMessage }] },
+                { role: 'user', parts: [{ text: userMessage }] }
+            ];
 
-                //             The contents include either the full file contents or a diff (when changes are smaller and localized).
+            source = new SSE(`${API_URL}/api/chat`, {
+                headers: { "Content-Type": "application/json" },
+                payload: JSON.stringify({ messages: reqBody })
+            });
 
-                //             Use it to:
-                //             - Understand the latest file modifications
-                //             - Ensure your suggestions build upon the most recent version of the files
-                //             - Make informed decisions about changes
-                //             - Ensure suggestions are compatible with existing code
-                //             `
-                //         }
-                //     ]
-                // }
-            ]
-            try {
-                const source = new SSE(`${API_URL}/api/chat`, {
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    payload: JSON.stringify({
-                        messages: reqBody
-                    })
-                });
-                source.onmessage = (event) => {
-                    const data = event.data;
-                    if (data) {
-                        console.log(data);
-                    }
-                };
-                source.onerror = () => {
-                    setLoading(false);
-                    source.close(); // Close the connection if an error occurs
-                };
-                source.onabort = () => {
-                    setLoading(false);
-                    source.close();
-                }
-            } catch (error) {
+            if (!source) {
+                toast.error("Failed to establish connection with the server.");
                 setLoading(false);
-                toast.error(error instanceof Error ? error.message : "Failed to fetch project");
-            } finally {
-                setLoading(false);
+                return;
             }
+
+            source.onmessage = (event) => {
+                const data = event.data;
+                if (data.trim() !== "") {
+                    const { chunk } = JSON.parse(data);
+                    buffer += chunk;
+
+                    if (loading) {
+                        setLoading(false);
+                    }
+
+                    // Clear any existing parse timeout
+                    if (parseTimeout) {
+                        clearTimeout(parseTimeout);
+                    }
+                    // Schedule parsing 1 seconds after the last message
+                    parseTimeout = setTimeout(() => {
+                        const parsed = parseXML(buffer);
+                        if (parsed.files.length > 0 && parsed.files[0].content) {
+                            setParsedXML(parsed);
+                        }
+                    }, 1000);
+                }
+            };
+
+            source.onerror = () => {
+                toast.error("An error occurred while streaming code.");
+                setLoading(false);
+                source?.close();
+            };
         }
+
         if (projectId) streamCode();
+
+        return () => {
+            if (source) source.close();
+            if (parseTimeout) clearTimeout(parseTimeout);
+        };
     }, []);
 
-    if (loading) {
-        return <div className="min-h-screen w-full flex justify-center items-center">
-            <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+    if (loading || !parsedXML) {
+        return (
+            <div className="min-h-screen w-full flex justify-center items-center">
+                <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+        );
     }
+
     return (
         <div>
             <Toaster />
+            <FileExplorer folders={buildHierarchy(parsedXML.files)} />
         </div>
-    )
+    );
 }

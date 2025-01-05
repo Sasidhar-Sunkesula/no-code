@@ -12,14 +12,13 @@ export function PromptInput() {
     const navigate = useNavigate();
 
     async function handleSubmit() {
-        const body: PromptSchema = { prompt: input };
         try {
             const response = await fetch(`${API_URL}/api/template`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify({ prompt: input } as PromptSchema)
             });
             const result = await response.json();
             if (!response.ok) {
@@ -27,7 +26,6 @@ export function PromptInput() {
             }
             navigate(`/project/${result.projectId}`, {
                 state: {
-                    projectName: result.projectName,
                     enhancedPrompt: result.enhancedPrompt,
                     assistantMessage: result.assistantMessage,
                     userMessage: result.userMessage
