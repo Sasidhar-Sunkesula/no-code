@@ -12,13 +12,12 @@ export function CodeEditor({ code }: {
     return (
         <CodeMirror
             value={code}
-            height="75vh"
-            width="50vw"
+            height={"75vh"}
             style={{
                 fontSize: '12px',
             }}
             theme={theme === 'dark' ? vscodeDark : vscodeLight}
-            extensions={[javascript({ jsx: true, typescript: true })]}
+            extensions={[javascript({ jsx: true })]}
             onChange={(val, viewUpdate) => {
                 // setCode(val);
             }}

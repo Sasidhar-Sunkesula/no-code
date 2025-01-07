@@ -20,21 +20,15 @@ function FolderComponent({ name, children }: { name: string; children: React.Rea
     );
 }
 
-function FileComponent({
-    name,
-    isSelected,
-    onClick,
-}: {
-    name: string;
-    isSelected: boolean;
-    onClick: () => void;
-}) {
+function FileComponent({ name, onClick }: { name: string; onClick: () => void }) {
+    const [clicked, setClicked] = useState(false);
     return (
         <div
-            className={`flex rounded-sm items-center gap-x-1 px-1 py-1 text-sm cursor-pointer 
-                ${isSelected ? "bg-sky-200" : "hover:bg-gray-200"}`
-            }
-            onClick={onClick}
+            className={`flex rounded-sm items-center gap-x-1 px-1 py-1 text-sm cursor-pointer ${clicked ? "bg-sky-200" : "hover:bg-gray-200"}`}
+            onClick={() => {
+                onClick();
+                setClicked(true);
+            }}
         >
             <FileIcon className="h-4" />
             {name}
@@ -44,12 +38,10 @@ function FileComponent({
 
 function RenderStructure({
     files,
-    selectedFileName,
     onFileClick,
 }: {
     files: Folders[];
-    selectedFileName: string;
-    onFileClick: (name: string, content: string) => void;
+    onFileClick: (content: string) => void;
 }) {
     return (
         <div>
@@ -57,11 +49,7 @@ function RenderStructure({
                 if (file.type === "folder") {
                     return (
                         <FolderComponent key={file.name} name={file.name}>
-                            <RenderStructure
-                                files={file.children ?? []}
-                                selectedFileName={selectedFileName}
-                                onFileClick={onFileClick}
-                            />
+                            <RenderStructure files={file.children ?? []} onFileClick={onFileClick} />
                         </FolderComponent>
                     );
                 } else {
@@ -69,8 +57,7 @@ function RenderStructure({
                         <FileComponent
                             key={file.name}
                             name={file.name}
-                            isSelected={selectedFileName === file.name}
-                            onClick={() => onFileClick(file.name, file.content ?? "")}
+                            onClick={() => onFileClick(file.content ?? "")}
                         />
                     );
                 }
@@ -81,25 +68,19 @@ function RenderStructure({
 
 export function FileExplorer({ folders }: { folders: Folders[] }) {
     const [currentFileContent, setCurrentFileContent] = useState<string>("");
-    const [selectedFileName, setSelectedFileName] = useState<string>("");
 
-    const handleFileClick = (name: string, content: string) => {
+    const handleFileClick = (content: string) => {
         setCurrentFileContent(content);
-        setSelectedFileName(name);
     };
 
     return (
         <div className="flex h-[75vh]">
-            <div className="bg-secondary rounded-sm flex flex-col px-1 w-52">
+            <div className="bg-secondary w-48 flex flex-col px-1">
                 <div className="text-sm p-2 border-b mb-2 flex items-center gap-x-1">
                     <FolderIcon className="h-4" />
                     Files
                 </div>
-                <RenderStructure
-                    files={folders}
-                    selectedFileName={selectedFileName}
-                    onFileClick={handleFileClick}
-                />
+                <RenderStructure files={folders} onFileClick={handleFileClick} />
             </div>
             <CodeEditor code={currentFileContent} />
         </div>

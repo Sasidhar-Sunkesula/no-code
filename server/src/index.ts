@@ -55,11 +55,11 @@ app.post("/api/template", async (req, res) => {
     if (templateName !== "blank") {
       const temResp = await getTemplates(templateName);
       if (temResp) {
-        const { templateFiles, userMessage } = temResp;
+        const { assistantMessage, userMessage } = temResp;
         res.json({
           projectId: newProject.id,
           enhancedPrompt,
-          templateFiles,
+          assistantMessage,
           userMessage
         });
         return;

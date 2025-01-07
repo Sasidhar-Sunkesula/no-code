@@ -27,7 +27,7 @@ export function PromptInput() {
             navigate(`/project/${result.projectId}`, {
                 state: {
                     enhancedPrompt: result.enhancedPrompt,
-                    templateFiles: result.templateFiles,
+                    assistantMessage: result.assistantMessage,
                     userMessage: result.userMessage
                 }
             });
