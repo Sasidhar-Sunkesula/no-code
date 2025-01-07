@@ -15,12 +15,12 @@ export default function App() {
           <Route path="/project/:projectId" element={<ProjectInfo />} />
 
           {/* Authentication Routes */}
-        <Route element={<AuthWrapper />}>
-          <Route path="login" element={<Login />} />
-          <Route path="signup" element={<Signup />} />
-        </Route>
+          <Route element={<AuthWrapper />}>
+            <Route path="login" element={<Login />} />
+            <Route path="signup" element={<Signup />} />
+          </Route>
         </Routes>
-      </ThemeProvider >
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

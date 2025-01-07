@@ -13,6 +13,11 @@ export type Folders = {
     content?: string
 }
 export type HeadersInit = [string, string][] | Record<string, string> | Headers;
+export type TemplateFiles = {
+    name: string;
+    path: string;
+    content: string;
+}[];
 export type ActionType = 'file' | 'shell';
 export interface BaseAction {
     content: string;

@@ -144,7 +144,7 @@ const getGitHubRepoContent = async (
   }
 }
 
-export async function getTemplates(templateName: string, title?: string) {
+export async function getTemplates(templateName: string) {
   const template = STARTER_TEMPLATES.find((t) => t.name == templateName);
 
   if (!template) {
@@ -180,26 +180,12 @@ export async function getTemplates(templateName: string, title?: string) {
     // redacting files specified in ignore file
     const ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
     const ig = ignore().add(ignorePatterns);
-
-    // filteredFiles = filteredFiles.filter(x => !ig.ignores(x.path))
     const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.path));
 
     filesToImport.files = filteredFiles;
     filesToImport.ignoreFile = ignoredFiles;
   }
 
-  const assistantMessage = `
-<boltArtifact id="imported-files" title="${title || 'Importing Starter Files'}" type="bundled">
-${filesToImport.files
-      .map(
-        (file) =>
-          `<boltAction type="file" filePath="${file.path}">
-${file.content}
-</boltAction>`,
-      )
-      .join('\n')}
-</boltArtifact>
-`;
   let userMessage = ``;
   const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name == 'prompt');
 
@@ -256,7 +242,7 @@ If you need to make changes to functionality, create new files instead of modify
   `;
 
   return {
-    assistantMessage,
+    templateFiles: filesToImport.files,
     userMessage,
   };
 }
