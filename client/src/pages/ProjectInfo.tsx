@@ -62,6 +62,8 @@ export default function ProjectInfo() {
                     parseTimeout = setTimeout(() => {
                         const parsed = parseXML(buffer);
                         if (parsed.files.length > 0 && parsed.files[0].content) {
+                            console.log(parsed);
+                            
                             setParsedXML(parsed);
                         }
                     }, 1000);
