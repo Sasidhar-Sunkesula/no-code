@@ -35,7 +35,9 @@ Use it to:
  - Make informed decisions about changes
  - Ensure suggestions are compatible with existing code
 
-IMPORTANT: Only give me back those files that contain the implementation of the project and any changed files from the list of files given to you.
-Don't give me back any files that are same as the original files.
+IMPORTANT: Only provide files that include the implementation changes or modifications related to the project. Return only the files that differ from the originals provided to you.
+- Do not return unchanged files.
+- For example, If additional dependencies are required (beyond those in the provided package.json), include the updated package.json file with the new dependencies added.
+- For any extra styles, return only the modified CSS file.
 `;
 }

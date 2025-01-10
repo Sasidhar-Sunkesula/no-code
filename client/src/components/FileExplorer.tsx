@@ -54,7 +54,7 @@ function RenderStructure({
     onFileClick: (name: string) => void;
 }) {
     return (
-        <div>
+        <div className="max-h-[75vh] overflow-y-auto">
             {files.map((file) => {
                 if (file.type === "folder") {
                     return (

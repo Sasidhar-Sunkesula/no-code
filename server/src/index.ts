@@ -36,7 +36,9 @@ app.post("/api/template", async (req, res) => {
     // Select the template
     const templateXML = await callLLM({
       type: "regular",
-      prompt: enhancedPrompt,
+      prompt: `Select a template for this prompt:
+      ${enhancedPrompt}
+      `,
       systemPrompt: starterTemplateSelectionPrompt(STARTER_TEMPLATES)
     }) as string;
 
