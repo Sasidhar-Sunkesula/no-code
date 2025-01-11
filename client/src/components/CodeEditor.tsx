@@ -16,6 +16,7 @@ export function CodeEditor({ code }: {
             width="50vw"
             style={{
                 fontSize: '12px',
+                borderRadius: '4px'
             }}
             theme={theme === 'dark' ? vscodeDark : vscodeLight}
             extensions={[javascript({ jsx: true, typescript: true })]}

@@ -1,4 +1,4 @@
-import { TemplateFiles } from "@repo/common/types";
+import { File } from "@repo/common/types";
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -6,10 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function projectFilesMsg(templateFiles: TemplateFiles) {
+export function projectFilesMsg(files: File[]) {
   return `Project Files:
 The following is a list of all project files and their complete contents that are currently visible and accessible to you.
-${templateFiles.map(file => `
+${files.map(file => `
   ${file.path}:
   \`\`\`
   ${file.content}
@@ -40,4 +40,9 @@ IMPORTANT: Only provide files that include the implementation changes or modific
 - For example, If additional dependencies are required (beyond those in the provided package.json), include the updated package.json file with the new dependencies added.
 - For any extra styles, return only the modified CSS file.
 `;
+}
+
+export function chatHistoryMsg() {
+  return `Below is the conversation history, including all previous messages along with the most recent assistant response. 
+Please reference this context to inform your future responses and maintain conversation continuity.`
 }
