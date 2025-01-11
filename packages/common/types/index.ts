@@ -64,3 +64,4 @@ export interface MessageState {
     currentAction: BoltActionData;
     actionId: number;
 }
+

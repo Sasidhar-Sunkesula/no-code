@@ -12,6 +12,18 @@ import toast, { Toaster } from "react-hot-toast";
 import { useLocation, useParams } from "react-router-dom";
 import { SSE } from "sse.js";
 
+interface File {
+  file: {
+    contents: string;
+  };
+}
+
+interface Directory {
+  directory: Record<string, File | Directory>;
+}
+
+type Files = Record<string, File | Directory>;
+
 const messageParser = new StreamingMessageParser({
   callbacks: {
     onArtifactOpen: (data) => {
@@ -30,148 +42,6 @@ const messageParser = new StreamingMessageParser({
 });
 
 export default function ProjectInfo() {
-  const files = {
-    src: {
-      directory: {
-        "App.jsx": {
-          file: {
-            contents: `
-  import React, { useState } from 'react';
-  
-  function App() {
-    const [count, setCount] = useState(0);
-  
-    return (
-      <div className="app">
-        <h1>Welcome to React</h1>
-        <div className="card">
-          <button onClick={() => setCount(count + 1)}>
-            Count is {count}
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  export default App;
-            `,
-          },
-        },
-        "main.jsx": {
-          file: {
-            contents: `
-  import React from 'react';
-  import ReactDOM from 'react-dom/client';
-  import App from './App';
-  import './index.css';
-  
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-            `,
-          },
-        },
-        "index.css": {
-          file: {
-            contents: `
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  }
-  
-  .app {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
-  }
-  
-  .card {
-    padding: 2em;
-  }
-  
-  button {
-    padding: 0.6em 1.2em;
-    font-size: 1em;
-    font-weight: 500;
-    cursor: pointer;
-    background-color: #1a1a1a;
-    color: white;
-    border-radius: 8px;
-    border: 1px solid transparent;
-  }
-  
-  button:hover {
-    border-color: #646cff;
-  }
-            `,
-          },
-        },
-      },
-    },
-    "index.html": {
-      file: {
-        contents: `
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>React + Vite</title>
-    </head>
-    <body>
-      <div id="root"></div>
-      <script type="module" src="/src/main.jsx"></script>
-    </body>
-  </html>
-        `,
-      },
-    },
-    "package.json": {
-      file: {
-        contents: `
-  {
-    "name": "react-vite-app",
-    "private": true,
-    "version": "0.0.0",
-    "type": "module",
-    "scripts": {
-      "dev": "vite",
-      "build": "vite build",
-      "preview": "vite preview"
-    },
-    "dependencies": {
-      "react": "^18.2.0",
-      "react-dom": "^18.2.0"
-    },
-    "devDependencies": {
-      "@vitejs/plugin-react": "^4.0.3",
-      "vite": "^4.4.5"
-    }
-  }
-        `,
-      },
-    },
-    "vite.config.js": {
-      file: {
-        contents: `
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react';
-  
-  export default defineConfig({
-    plugins: [react()],
-    server: {
-      port: 3000,
-      strictPort: true,
-    },
-  });
-        `,
-      },
-    },
-  };
-
   const { projectId } = useParams();
   const location = useLocation();
   const { enhancedPrompt, templateFiles, templatePrompt } = location.state as {
@@ -183,6 +53,37 @@ export default function ProjectInfo() {
   const [webContainer, setWebContainer] = useState<WebContainer | null>(null);
 
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [mountFiles, setMountFiles] = useState<Files | null>(null);
+
+  function convertToFilesFormat(input: TemplateFiles): Files {
+    const files: Files = {};
+
+    input.forEach(({ path, content }) => {
+      const parts = path.split("/");
+      let current = files;
+
+      parts.forEach((part, index) => {
+        if (index === parts.length - 1) {
+          // Last part is the file
+          current[part] = {
+            file: {
+              contents: content,
+            },
+          };
+        } else {
+          // Intermediate directories
+          if (!current[part]) {
+            current[part] = {
+              directory: {},
+            };
+          }
+          current = (current[part] as Directory).directory;
+        }
+      });
+    });
+
+    return files;
+  }
 
   useEffect(() => {
     if (!webContainer) {
@@ -191,6 +92,9 @@ export default function ProjectInfo() {
         console.log("container started");
       });
     }
+    console.log("files are", templateFiles);
+    const formattedTemplateFiles = convertToFilesFormat(templateFiles);
+    setMountFiles(formattedTemplateFiles);
   }, []);
 
   useEffect(() => {
@@ -259,8 +163,10 @@ export default function ProjectInfo() {
       <FileExplorer templateFiles={templateFiles} />
       <button
         onClick={async () => {
-          if (webContainer) {
-            await webContainer.mount(files);
+          if (webContainer && mountFiles) {
+            console.log("mounting files are:", mountFiles);
+
+            await webContainer.mount(mountFiles);
 
             const installProcess = await webContainer.spawn("npm", ["install"]);
 
