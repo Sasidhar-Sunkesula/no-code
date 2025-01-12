@@ -1,16 +1,20 @@
-import type { GenerateContentStreamResult } from "@google/generative-ai";
+import { createOpenAI } from '@ai-sdk/openai';
 import { chatSchema, promptSchema } from "@repo/common/zod";
 import prisma from "@repo/db/client";
+import { generateText, smoothStream, streamText } from 'ai';
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { STARTER_TEMPLATES } from "./constants";
+import { MAX_TOKENS, STARTER_TEMPLATES } from "./constants";
 import { sseMiddleware } from "./middlewares/sseMiddleware";
 import { enhancerPrompt } from "./prompts/enhancerPrompt";
 import { getTemplates, parseSelectedTemplate, starterTemplateSelectionPrompt } from "./prompts/starterTemplateSelection";
 import { getSystemPrompt } from "./prompts/systemPrompt";
-import { callLLM } from "./utils/callLLM";
 dotenv.config();
+
+const openai = createOpenAI({
+  baseURL: "https://api-inference.huggingface.co/v1"
+});
 
 const app = express();
 app.use(cors());
@@ -28,19 +32,18 @@ app.post("/api/template", async (req, res) => {
 
   try {
     // Enhance the prompt
-    const enhancedPrompt = await callLLM({
-      type: "regular",
-      prompt: enhancerPrompt(prompt)
-    }) as string;
+    const { text: enhancedPrompt } = await generateText({
+      model: openai('Qwen/Qwen2.5-Coder-32B-Instruct'),
+      system: enhancerPrompt(),
+      prompt: prompt
+    });
 
     // Select the template
-    const templateXML = await callLLM({
-      type: "regular",
-      prompt: `Select a template for this prompt:
-      ${enhancedPrompt}
-      `,
-      systemPrompt: starterTemplateSelectionPrompt(STARTER_TEMPLATES)
-    }) as string;
+    const { text: templateXML } = await generateText({
+      model: openai('Qwen/Qwen2.5-Coder-32B-Instruct'),
+      system: starterTemplateSelectionPrompt(STARTER_TEMPLATES),
+      prompt: enhancedPrompt
+    });
 
     const templateName = parseSelectedTemplate(templateXML);
     if (!templateName) {
@@ -92,33 +95,20 @@ app.post("/api/chat", sseMiddleware, async (req, res) => {
   }
   const { messages } = validation.data;
   try {
-    const result = await callLLM({
-      type: "stream",
+    const result = streamText({
+      model: openai('Qwen/Qwen2.5-Coder-32B-Instruct'),
+      system: getSystemPrompt(),
       messages: messages,
-      systemPrompt: getSystemPrompt()
-    }) as GenerateContentStreamResult;
+      experimental_transform: smoothStream(),
+      maxTokens: MAX_TOKENS
+      // onFinish({ text, finishReason, usage, response }) {
+      // your own logic, e.g. for saving the chat history or recording usage
+      // const messages = response.messages; // messages that were generated
+    });
 
-    let buffer = ""; // Buffer to accumulate chunks
-    let interval = 100; // Send data every 100ms
-    // Set an interval to send data every 100ms
-    const sendInterval = setInterval(() => {
-      if (buffer.trim() !== "") {
-        res.write(`data: ${JSON.stringify({ chunk: buffer })}\n\n`); // Send accumulated data
-        buffer = ""; // Clear buffer after sending
-      }
-    }, interval);
-
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text ? chunk.text() : ""; // Get chunk text safely
+    for await (const chunk of result.textStream) {
       // Accumulate the chunk in the buffer
-      buffer += chunkText;
-    }
-    // Clear the interval when the stream ends
-    clearInterval(sendInterval);
-
-    // Ensure no leftover data after stream ends
-    if (buffer.trim() !== "") {
-      res.write(`data: ${JSON.stringify({ chunk: buffer })}\n\n`);
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
     }
     res.end();
   } catch (error) {

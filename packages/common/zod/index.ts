@@ -4,8 +4,8 @@ export const promptSchema = z.object({
     prompt: z.string().min(3, "Please provide some prompt")
 });
 export const messageSchema = z.object({
-    role: z.enum(["user", "model"]),
-    parts: z.array(z.object({ text: z.string() }))
+    role: z.enum(["user", "assistant"]),
+    content: z.string()
 });
 export const chatSchema = z.object({
     messages: z.array(messageSchema)

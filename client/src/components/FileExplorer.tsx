@@ -106,7 +106,14 @@ function findFileContent(
   }
   return undefined; // Return undefined if not found
 }
-export function FileExplorer({ templateFiles }: { templateFiles: File[] }) {
+export function FileExplorer({
+  templateFiles,
+  refresh,
+}: {
+  templateFiles: File[];
+  refresh: boolean;
+}) {
+  console.log(refresh);
   const [folders, setFolders] = useState<Folders[]>(
     buildHierarchy(templateFiles)
   );
@@ -119,6 +126,9 @@ export function FileExplorer({ templateFiles }: { templateFiles: File[] }) {
   }, []);
 
   useEffect(() => {
+    if (!refresh) {
+      return;
+    }
     const interval = setInterval(() => {
       const filesFromState = StreamingMessageParser.filesMap.get("1234") ?? [];
       if (filesFromState.length === 0) {
