@@ -82,7 +82,7 @@ ${input}`,
   return (
     <>
       <Toaster />
-      <div className="flex w-full h-full justify-between p-10">
+      <div className="flex w-full h-full p-10">
         <div className="flex flex-col gap-y-5">
           <Workbench />
           <Input

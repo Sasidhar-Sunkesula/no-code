@@ -63,6 +63,11 @@ const PreviewCode = ({ folders }: { folders: Folders[] }) => {
           },
         })
       );
+      const installExitCode = await installProcess.exit;
+
+      if (installExitCode !== 0) {
+        throw new Error("Unable to run npm install");
+      }
 
       await webContainer.spawn("npm", ["run", "dev"]);
 
