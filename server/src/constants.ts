@@ -8,6 +8,7 @@ export interface StarterTemplate {
     description: string;
     githubRepo: string;
     tags: string[];
+    folder?: string;
     icon?: string;
 }
 export const STARTER_TEMPLATES: StarterTemplate[] = [
@@ -28,11 +29,20 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
         icon: 'i-bolt:nextjs',
     },
     {
+        name: 'bolt-express-simple',
+        label: 'Express.js',
+        description: 'Express.js starter template in JavaScript',
+        githubRepo: 'stackblitz/starters',
+        folder: 'express-simple',
+        tags: ['express', 'backend', 'javascript', 'server', 'node', 'http server'],
+    },
+    {
         name: 'bolt-node',
         label: 'Node.js',
-        description: 'Node.js starter template with js',
+        description: 'Node.js starter template with JavaScript',
         githubRepo: 'stackblitz/starters',
-        tags: ['node', 'node.js', 'backend', 'express', 'javascript', 'simple script'],
+        folder: 'node',
+        tags: ['node', 'node.js', 'javascript', 'simple script'],
     },
     {
         name: 'bolt-angular',

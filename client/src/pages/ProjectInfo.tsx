@@ -10,7 +10,7 @@ import { projectFilesMsg, projectInstructionsMsg } from "@/lib/utils";
 import { useGeneralStore } from "@/store/generalStore";
 import { useProjectStore } from "@/store/projectStore";
 import { File } from "@repo/common/types";
-import { useChat } from 'ai/react';
+import { Message, useChat } from 'ai/react';
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
@@ -74,12 +74,18 @@ export default function ProjectInfo() {
                 if (!response.ok) {
                     throw new Error(result.msg);
                 }
-                const { enhancedPrompt, templateFiles, templatePrompt } = result;
-                setMessages([
-                    { id: '1', role: 'user', content: projectFilesMsg(templateFiles) },
-                    { id: '2', role: 'user', content: templatePrompt },
-                    { id: '3', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }
-                ]);
+                const { enhancedPrompt, templateFiles, templatePrompt, ignorePatterns } = result;
+                const messages = [
+                    { id: '1', role: 'user', content: projectFilesMsg(templateFiles, ignorePatterns) },
+                    ...(templatePrompt
+                        ? [
+                            { id: '2', role: 'user', content: templatePrompt },
+                            { id: '3', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }
+                        ]
+                        : [{ id: '2', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }]
+                    )
+                ];
+                setMessages(messages as Message[]);
                 reload();
                 // Store template files in store
                 setCurrentMessageId(crypto.randomUUID());

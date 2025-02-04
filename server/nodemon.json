@@ -3,5 +3,5 @@
     "src"
   ],
   "ext": "ts",
-  "exec": "npx esbuild ./src/index.ts --bundle --platform=node --outfile=./dist/index.js && node dist/index.js"
+  "exec": "npm run build && node dist/index.js"
 }

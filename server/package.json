@@ -3,9 +3,10 @@
   "private": true,
   "license": "ISC",
   "scripts": {
-    "build": "npx esbuild ./src/index.ts  --bundle --platform=node --outfile=./dist/index.js",
+    "build": "npx esbuild ./src/index.ts  --bundle --platform=node --outfile=./dist/index.js && npm run copy-cache",
     "dev": "npx nodemon",
     "lint": "eslint --cache --ext \".js,.ts,.tsx\" index.ts",
+    "copy-cache": "xcopy /E /I /Y src\\cache dist\\cache",
     "start": "node dist/index.js"
   },
   "dependencies": {
@@ -17,8 +18,7 @@
     "ai": "^4.1.16",
     "cors": "^2.8.5",
     "esbuild": "^0.24.2",
-    "express": "^5.0.1",
-    "ignore": "^7.0.0"
+    "express": "^5.0.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

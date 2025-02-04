@@ -22,10 +22,12 @@ export function findFileContent(folders: Folders[], selectedFileName: string): s
   return undefined; // Return undefined if not found
 }
 
-export function projectFilesMsg(files: File[]) {
+export function projectFilesMsg(files: File[], ignorePatterns: string[]) {
+  // Filter out files that match any of the ignore patterns
+  const filteredFiles = files.filter(file => !ignorePatterns.some(pattern => file.filePath.includes(pattern)));
   return `Project Files:
 The following is a list of all project files and their complete contents that are currently visible and accessible to you.
-${files.map(file => `
+${filteredFiles.map(file => `
   ${file.filePath}:
   \`\`\`
   ${file.content}

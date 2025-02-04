@@ -1,4 +1,3 @@
-import ignore from "ignore";
 import { STARTER_TEMPLATES, StarterTemplate } from "../constants";
 import { HeadersInit } from "@repo/common/types";
 
@@ -6,11 +5,6 @@ export const starterTemplateSelectionPrompt = (templates: StarterTemplate[]) => 
 You are an experienced developer who helps people choose the best starter template for their projects.
 
 Available templates:
-<template>
-  <name>blank</name>
-  <description>Empty starter for simple scripts and trivial tasks that don't require a full template setup</description>
-  <tags>basic, script</tags>
-</template>
 ${templates.map((template) => `
 <template>
   <name>${template.name}</name>
@@ -31,7 +25,7 @@ Examples:
 User: I need to build a todo app
 Response:
 <selection>
-  <templateName>react-basic-starter</templateName>
+  <templateName>bolt-vite-react</templateName>
   <reasoning>Simple React setup perfect for building a todo application</reasoning>
 </selection>
 </example>
@@ -40,23 +34,24 @@ Response:
 User: Write a script to generate numbers from 1 to 100
 Response:
 <selection>
-  <templateName>blank</templateName>
-  <reasoning>This is a simple script that doesn't require any template setup</reasoning>
+  <templateName>bolt-node</templateName>
+  <reasoning>A simple script that can be run in a Node.js environment</reasoning>
 </selection>
 </example>
 
 Instructions:
 1. Try to find the framework name from the prompt and use the tags to make a decision.
 2. Do not select based on the order, go through all the templates and tags before making a decision.
-3. For trivial tasks and simple scripts, always recommend the blank template
-4. For more complex projects, recommend templates from the provided list
+3. For trivial tasks and simple scripts, recommend the "node" template
+4. For more complex projects, recommend templates of libraries and frameworks from the provided list
 5. Follow the exact XML format.
-6. Consider both technical requirements and tags
+6. Consider both technical requirements and tags.
 7. If no perfect match exists, recommend the closest option
+8. If the user asks for a specific language or framework, prioritize that.
+9. If no specific library or framework is mentioned, recommend the "react" template.
 
 Ultra-Important: Provide only the selection tags in your response, no additional text. 
-The template name you provide should be from the above provided available list only!
-`;
+The template name you provide should be from the above provided available list only!`;
 
 export const parseSelectedTemplate = (llmOutput: string): string | null => {
   // Extract content between <templateName> tags
@@ -87,7 +82,7 @@ const getGitHubRepoContent = async (
     });
 
     if (!response.ok) {
-      throw new Error(`Github Rate Limit Hit!`);
+      throw new Error(`Unable to fetch repository contents: ${response.statusText}`);
     }
     const data: any = await response.json();
 
@@ -150,10 +145,13 @@ export async function getTemplates(templateName: string) {
   if (!template) {
     return null;
   }
-  const githubRepo = template.githubRepo;
-  const files = await getGitHubRepoContent(githubRepo);
+  const { githubRepo, folder } = template;
+  const files = await getGitHubRepoContent(githubRepo, folder);
 
-  let filteredFiles = files;
+  // Removes the folder from the file path, ex: node/package.json -> package.json, only needed when folder is provided
+  let filteredFiles = folder
+    ? files.map(file => ({ ...file, filePath: file.filePath.replace(`${folder}/`, '') }))
+    : files;
 
   /*
    * ignoring common unwanted files
@@ -170,25 +168,16 @@ export async function getTemplates(templateName: string) {
 
   // check for ignore file in .bolt folder
   const templateIgnoreFile = files.find((x) => x.filePath.startsWith('.bolt') && x.name == 'ignore');
-
-  const filesToImport = {
-    files: filteredFiles,
-    ignoreFile: [] as typeof filteredFiles,
-  };
-
+  let ignorePatterns: string[] = [];
   if (templateIgnoreFile) {
     // redacting files specified in ignore file
-    const ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
-    const ig = ignore().add(ignorePatterns);
-    const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.filePath));
-
-    filesToImport.files = filteredFiles;
-    filesToImport.ignoreFile = ignoredFiles;
+    ignorePatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim()).filter(x => x.length > 0);
   }
   const templatePromptFile = files.filter((x) => x.filePath.startsWith('.bolt')).find((x) => x.name == 'prompt');
 
   return {
-    templateFiles: filesToImport.files,
+    templateFiles: filteredFiles,
+    ignorePatterns: ignorePatterns,
     templatePrompt: templatePromptFile?.content ?? '',
   };
 }

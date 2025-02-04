@@ -12,11 +12,12 @@ import {
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { reactViteTemplate } from './cache/bolt-vite-react';
 import { MAX_TOKENS, STARTER_TEMPLATES } from "./constants";
 import { enhancerPrompt } from "./prompts/enhancerPrompt";
 import { getTemplates, parseSelectedTemplate, starterTemplateSelectionPrompt } from "./prompts/starterTemplateSelection";
 import { getSystemPrompt } from "./prompts/systemPrompt";
+import { promises as fs } from 'fs';
+import path from 'path';
 dotenv.config();
 
 const openaiHF = createOpenAI({
@@ -38,7 +39,9 @@ const queenModel = openaiHF('Qwen/Qwen2.5-Coder-32B-Instruct');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  limit: '1MB'
+}));
 
 app.post('/api/new', async (req, res) => {
   const validation = promptSchema.safeParse(req.body);
@@ -69,24 +72,20 @@ app.post('/api/new', async (req, res) => {
 });
 
 app.get('/api/template/:projectId', async (req, res) => {
-  const { projectId } = req.params;
   try {
     const project = await prisma.project.findUnique({
-      where: {
-        id: projectId
-      }
+      where: { id: req.params.projectId }
     });
+
     if (!project) {
       throw new Error("Project not found");
     }
-    const { name: prompt } = project;
     // Enhance the prompt
     const { text: enhancedPrompt } = await generateText({
       model: queenModel,
       system: enhancerPrompt(),
-      prompt: prompt
+      prompt: project.name
     });
-
     // Select the template
     const { text: templateXML } = await generateText({
       model: queenModel,
@@ -95,36 +94,29 @@ app.get('/api/template/:projectId', async (req, res) => {
     });
 
     const templateName = parseSelectedTemplate(templateXML);
+    // Indicates that LLM hasn't generated any template name. It doesn't happen mostly. 
     if (!templateName) {
-      // Indicates that LLM hasn't generated any template name. It doesn't happen mostly. 
       throw new Error("Error occurred while identifying a template");
     }
-    if (templateName === 'bolt-vite-react') {
-      // If the template is bolt-vite-react, then we need to fetch the template files and prompt
-      const { templateFiles, templatePrompt } = reactViteTemplate;
-      res.json({
-        enhancedPrompt,
-        templateFiles,
-        templatePrompt
-      });
-      return;
-    } else if (templateName !== "blank") {
-      const temResp = await getTemplates(templateName);
-      if (temResp) {
-        const { templateFiles, templatePrompt } = temResp;
-        res.json({
+    // Check if the template is cached
+    const templatePath = path.join(__dirname, 'cache', `${templateName}.json`);
+    // Try to read from cache first
+    const templateData = await fs.access(templatePath)
+      .then(() => fs.readFile(templatePath, 'utf8'))
+      .then(data => JSON.parse(data))
+      .catch(async () => {
+        // If cache read fails, fetch from GitHub
+        const temResp = await getTemplates(templateName);
+        if (!temResp) {
+          throw new Error("Unable to initialize the project. Please try again with a different prompt.");
+        }
+        return {
           enhancedPrompt,
-          templateFiles,
-          templatePrompt
-        });
-        return;
-      }
-    } else {
-      res.json({
-        enhancedPrompt
+          ...temResp
+        };
       });
-      return;
-    }
+
+    res.json(templateData);
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -145,7 +137,7 @@ app.post('/api/chat', async (req, res) => {
   pipeDataStreamToResponse(res, {
     execute: async dataStreamWriter => {
       const result = streamText({
-        model: queenModel,
+        model: coderModel,
         system: getSystemPrompt(),
         messages: messages,
         experimental_transform: smoothStream(),
