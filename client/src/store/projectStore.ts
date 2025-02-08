@@ -6,9 +6,9 @@ interface ProjectState {
     // messageId, message with json string
     messageHistory: MessageHistory[];
     projectFiles: FileAction[];
-    currentMessageId: string | null;
     // messageId, actions
     actions: Map<string, ActionState[]>;
+    currentMessageId: string | null;
     lastModified: number;
     selectedFile: string | null;
 

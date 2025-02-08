@@ -86,7 +86,13 @@ export function constructMessages(currentInput: string,
         }
         currentIndex++;
     }
-    payload.push({ id: crypto.randomUUID(), role: 'user', content: `Current Message : ${currentInput}`, timestamp: Date.now() });
+    payload.push({
+        id: 'currentMessage',
+        role: 'user',
+        content: `Current Message : ${currentInput}`,
+        rawContent: currentInput,
+        timestamp: Date.now()
+    });
     return payload;
 }
 

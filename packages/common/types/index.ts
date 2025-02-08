@@ -15,6 +15,7 @@ export type MessageHistory = {
     timestamp: number;
     role: 'user' | 'assistant' | 'data';
     reasoning?: string;
+    rawContent?: string;
     content: string;
 }
 export interface BaseAction {
@@ -45,6 +46,22 @@ export type ShellActionState = BaseAction & {
 export type ActionState = FileActionState | ShellActionState;
 // This is the type of the actions array in the project store
 export type Actions = (FileAction | ShellAction)[];
+export interface Template {
+    templateFiles: {
+        name: string;
+        filePath: string;
+        content: string;
+    }[];
+    ignorePatterns: string[];
+    templatePrompt: string;
+}
+export interface Artifact {
+    id: string;
+    title: string;
+    initialContext: string;
+    actions: Actions;
+    endingContext: string;
+}
 export interface ContentFile {
     file: {
         contents: string;

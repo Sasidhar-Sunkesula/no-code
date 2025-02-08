@@ -1,5 +1,5 @@
 import { ActionState } from "@repo/common/types";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { FileActionDisplay, ShellActionDisplay } from "./ActionDisplay";
 import { parse } from "best-effort-json-parser";
 import { Button } from "./ui/button";
@@ -33,10 +33,6 @@ export function AssistantResponse({ content, actions, reasoning }: { content: st
             </div>
             {actions.length > 0 && (
                 <div className="flex flex-col gap-y-3 bg-primary-foreground rounded-md px-4 py-4">
-                    <div className="flex items-center gap-x-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        Create initial files
-                    </div>
                     {actions.map(action => action.type === 'file'
                         ? <FileActionDisplay key={action.id} action={action} />
                         : <ShellActionDisplay key={action.id} action={action} />

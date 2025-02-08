@@ -52,6 +52,7 @@ export default function ProjectInfo() {
         body: {
             projectId: params.projectId
         },
+        sendExtraMessageFields: true,
         experimental_throttle: 100,
         // onFinish: (message, { usage, finishReason }) => {
         onFinish: () => {
@@ -61,6 +62,7 @@ export default function ProjectInfo() {
         },
         onError: error => {
             console.error('An error occurred:', error);
+            toast.error('There was an error processing your request');
         },
         // onResponse: response => {
         // console.log('Received HTTP response from server:', response);
@@ -75,32 +77,37 @@ export default function ProjectInfo() {
                 if (!response.ok) {
                     throw new Error(result.msg);
                 }
-                const { enhancedPrompt, templateFiles, templatePrompt, ignorePatterns } = result;
-                const messages = [
-                    { id: '1', role: 'user', content: projectFilesMsg(templateFiles, ignorePatterns) },
-                    ...(templatePrompt
-                        ? [
-                            { id: '2', role: 'user', content: templatePrompt },
-                            { id: '3', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }
-                        ]
-                        : [{ id: '2', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }]
-                    )
-                ];
-                setMessages(messages as Message[]);
-                reload();
-                // Store template files in store
-                setCurrentMessageId(crypto.randomUUID());
-                upsertMessage({ id: crypto.randomUUID(), role: 'data', content: templatePrompt, timestamp: Date.now() });
-                updateProjectFiles((templateFiles as File[]).map(file => ({
-                    id: crypto.randomUUID(),
-                    type: 'file',
-                    timestamp: Date.now(),
-                    filePath: file.filePath,
-                    content: file.content
-                })));
-                const container = await getWebContainer();
-                await mountFiles(templateFiles, container);
-                setWebContainerInstance(container);
+                if (result.type === 'existing') {
+                    // const { messages } = result;
+
+                } else {
+                    const { enhancedPrompt, templateFiles, templatePrompt, ignorePatterns } = result;
+                    const messages = [
+                        { id: '1', role: 'user', content: projectFilesMsg(templateFiles, ignorePatterns) },
+                        ...(templatePrompt
+                            ? [
+                                { id: '2', role: 'user', content: templatePrompt },
+                                { id: '3', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }
+                            ]
+                            : [{ id: '2', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }]
+                        )
+                    ];
+                    setMessages(messages as Message[]);
+                    reload();
+                    // Store template files in store
+                    setCurrentMessageId(crypto.randomUUID());
+                    upsertMessage({ id: crypto.randomUUID(), role: 'data', content: templatePrompt, timestamp: Date.now() });
+                    updateProjectFiles((templateFiles as File[]).map(file => ({
+                        id: crypto.randomUUID(),
+                        type: 'file',
+                        timestamp: Date.now(),
+                        filePath: file.filePath,
+                        content: file.content
+                    })));
+                    const container = await getWebContainer();
+                    await mountFiles(templateFiles, container);
+                    setWebContainerInstance(container);
+                }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Error while initializing project"
                 toast.error(errorMessage)

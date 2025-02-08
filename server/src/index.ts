@@ -1,11 +1,11 @@
-import { createOpenAI } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { Artifact, Template } from '@repo/common/types';
 import { chatSchema, promptSchema } from "@repo/common/zod";
 import prisma from "@repo/db/client";
 import {
   extractReasoningMiddleware,
   generateText,
-  pipeDataStreamToResponse,
   smoothStream,
   streamText,
   wrapLanguageModel
@@ -13,12 +13,12 @@ import {
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { promises as fs } from 'fs';
+import path from 'path';
 import { MAX_TOKENS, STARTER_TEMPLATES } from "./constants";
 import { enhancerPrompt } from "./prompts/enhancerPrompt";
 import { getTemplates, parseSelectedTemplate, starterTemplateSelectionPrompt } from "./prompts/starterTemplateSelection";
 import { getSystemPrompt } from "./prompts/systemPrompt";
-import { promises as fs } from 'fs';
-import path from 'path';
 dotenv.config();
 
 const openaiOVH = createOpenAI({
@@ -59,7 +59,7 @@ const openaiTargon = createOpenAI({
 const google2FlashModel = google('gemini-2.0-flash-001');
 const queenVLPlusModel = openaiOpenRouter('qwen/qwen-vl-plus:free');
 const queenModel = openaiChutes('Qwen/Qwen2.5-72B-Instruct');
-const llamaModel = openaiGROQ('llama-3.3-70b-specdec');
+const llamaModel = openaiGROQ('llama-3.3-70b-versatile');
 const mistralModel = openaiChutes3('unsloth/Mistral-Nemo-Instruct-2407');
 
 const ovhR1Model = openaiOVH('DeepSeek-R1-Distill-Llama-70B');
@@ -91,13 +91,13 @@ app.post('/api/new', async (req, res) => {
       data: {
         name: prompt,
         createdAt: new Date(),
-        userId: "cm59k02420000ff6m7t1a7ret",
+        userId: "cm6v8wm2v0000jcdbyeckox9d",
         messages: {
           create: {
-            role: 'USER',
+            role: 'user',
             content: { text: prompt }
           }
-        }
+        },
       }
     });
     res.json({
@@ -114,22 +114,22 @@ app.post('/api/new', async (req, res) => {
 app.get('/api/project/:projectId', async (req, res) => {
   try {
     const project = await prisma.project.findUnique({
-      where: { id: req.params.projectId }
+      where: { id: req.params.projectId },
+      include: {
+        files: true,
+        messages: {
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
     });
 
     if (!project) {
       throw new Error("Project not found");
     }
-    // Fetch the project messages
-    const messages = await prisma.message.findMany({
-      where: {
-        projectId: project.id
-      }, orderBy: {
-        createdAt: 'asc'
-      }
-    });
     // If the project has only one message and it's from the user
-    if (messages.length === 1 && messages[0].role === 'USER') {
+    if (project.messages.length === 1 && project.messages[0].role === 'user') {
       // Enhance the prompt
       const { text: enhancedPrompt } = await generateText({
         model: llamaModel,
@@ -151,7 +151,7 @@ app.get('/api/project/:projectId', async (req, res) => {
       // Check if the template is cached
       const templatePath = path.join(__dirname, 'cache', `${templateName}.json`);
       // Try to read from cache first
-      const templateData = await fs.access(templatePath)
+      const templateData: Template = await fs.access(templatePath)
         .then(() => fs.readFile(templatePath, 'utf8'))
         .then(data => JSON.parse(data))
         .catch(async () => {
@@ -160,20 +160,30 @@ app.get('/api/project/:projectId', async (req, res) => {
           if (!temResp) {
             throw new Error("Unable to initialize the project. Please try again with a different prompt.");
           }
-          return {
-            enhancedPrompt,
-            ...temResp
-          };
+          return temResp;
         });
 
+      if (project.files.length === 0) {
+        // Save the files to the project
+        await prisma.file.createMany({
+          data: templateData.templateFiles.map(file => ({
+            projectId: project.id,
+            filePath: file.filePath,
+            content: file.content
+          }))
+        });
+      }
+
       res.json({
+        type: 'new',
         enhancedPrompt,
         ...templateData
-      })
-      return;
+      });
     } else {
       res.json({
-        messages
+        type: 'existing',
+        messages: project.messages,
+        projectFiles: project.files
       });
     }
   } catch (error) {
@@ -193,44 +203,67 @@ app.post('/api/chat', async (req, res) => {
     return;
   }
   const { messages, projectId } = validation.data;
-  pipeDataStreamToResponse(res, {
-    execute: async dataStreamWriter => {
-      const result = streamText({
-        model: google2FlashModel,
-        system: getSystemPrompt(),
-        messages: messages,
-        experimental_transform: smoothStream(),
-        maxTokens: MAX_TOKENS,
-        async onFinish({ text, finishReason, usage, response, reasoning }) {
-          try {
-            // Remove JSON markdown wrapper and parse
-            const jsonContent = JSON.parse(text.slice('```json\n'.length, -3));
+  const result = streamText({
+    model: google2FlashModel,
+    system: getSystemPrompt(),
+    messages: messages,
+    experimental_transform: smoothStream(),
+    maxTokens: MAX_TOKENS,
+    async onFinish({ text, finishReason, usage, response, reasoning }) {
+      try {
+        // Remove JSON markdown wrapper and parse
+        const jsonContent = text.slice('```json\n'.length, -3);
+        const currentMessage = messages.find(message => message.role === 'user' && message.id === 'currentMessage');
+        await prisma.message.createMany({
+          data: [
+            ...(currentMessage ? [{
+              role: 'user' as const,
+              projectId: projectId,
+              createdAt: new Date(),
+              content: { text: currentMessage.rawContent ?? '' } // Wrap in object to make it valid JSON
+            }] : []),
+            {
+              role: 'assistant',
+              projectId: projectId,
+              createdAt: new Date(),
+              content: jsonContent
+            }
+          ]
+        });
+        // Update files
+        const { actions } = JSON.parse(jsonContent) as Artifact;
+        const files = actions.filter(action => action.type === 'file');
 
-            await prisma.message.create({
-              data: {
-                role: 'ASSISTANT',
+        files.forEach(async file => {
+          await prisma.file.upsert({
+            where: {
+              // Unique identifier to find the record
+              projectId_filePath: {
                 projectId: projectId,
-                createdAt: new Date(),
-                content: jsonContent // Use parsed JSON directly
+                filePath: file.filePath
               }
-            });
-          } catch (error) {
-            console.error('Failed to parse JSON:', error);
-            throw error;
-          }
-        }
-      });
-      result.mergeIntoDataStream(dataStreamWriter, {
-        sendReasoning: true,
-        sendUsage: true,
-      });
-    },
-    onError: error => {
-      // Error messages are masked by default for security reasons.
-      // If you want to expose the error message to the client, you can do so here:
-      return error instanceof Error ? error.message : String(error);
-    },
-  })
+            },
+            update: {
+              // Update these fields if record exists
+              content: file.content,
+              timestamp: new Date()
+            },
+            create: {
+              // Create new record with these fields if not found
+              projectId: projectId,
+              filePath: file.filePath,
+              content: file.content,
+              timestamp: new Date()
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Failed to parse JSON or saving messages', error);
+        throw error;
+      }
+    }
+  });
+  result.pipeDataStreamToResponse(res);
 });
 
 const PORT = process.env.PORT || 3000;
