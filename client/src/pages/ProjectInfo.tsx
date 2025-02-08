@@ -49,6 +49,9 @@ export default function ProjectInfo() {
     );
     const { messages, input, setInput, handleInputChange, isLoading, stop, error, reload, setMessages } = useChat({
         api: `${API_URL}/api/chat`,
+        body: {
+            projectId: params.projectId
+        },
         experimental_throttle: 100,
         // onFinish: (message, { usage, finishReason }) => {
         onFinish: () => {
@@ -67,7 +70,7 @@ export default function ProjectInfo() {
     useEffect(() => {
         async function initializeProject() {
             try {
-                const response = await fetch(`${API_URL}/api/template/${params.projectId}`);
+                const response = await fetch(`${API_URL}/api/project/${params.projectId}`);
                 const result = await response.json();
                 if (!response.ok) {
                     throw new Error(result.msg);

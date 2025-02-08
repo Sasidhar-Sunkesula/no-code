@@ -36,6 +36,11 @@ const openaiChutes2 = createOpenAI({
   apiKey: process.env.CHUTES_API_KEY,
 });
 
+const openaiChutes3 = createOpenAI({
+  baseURL: 'https://chutes-unsloth-mistral-nemo-instruct-2407.chutes.ai/v1',
+  apiKey: process.env.CHUTES_API_KEY,
+});
+
 const openaiOpenRouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -55,6 +60,7 @@ const google2FlashModel = google('gemini-2.0-flash-001');
 const queenVLPlusModel = openaiOpenRouter('qwen/qwen-vl-plus:free');
 const queenModel = openaiChutes('Qwen/Qwen2.5-72B-Instruct');
 const llamaModel = openaiGROQ('llama-3.3-70b-specdec');
+const mistralModel = openaiChutes3('unsloth/Mistral-Nemo-Instruct-2407');
 
 const ovhR1Model = openaiOVH('DeepSeek-R1-Distill-Llama-70B');
 const chutesR1Model = openaiChutes2('deepseek-ai/DeepSeek-R1-Distill-Llama-70B');
@@ -84,8 +90,14 @@ app.post('/api/new', async (req, res) => {
     const newProject = await prisma.project.create({
       data: {
         name: prompt,
-        status: "NEW",
-        userId: "cm59k02420000ff6m7t1a7ret"
+        createdAt: new Date(),
+        userId: "cm59k02420000ff6m7t1a7ret",
+        messages: {
+          create: {
+            role: 'USER',
+            content: { text: prompt }
+          }
+        }
       }
     });
     res.json({
@@ -94,12 +106,12 @@ app.post('/api/new', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      msg: error instanceof Error ? error.message : "Failed to create project",
+      msg: "Failed to create project",
     });
   }
 });
 
-app.get('/api/template/:projectId', async (req, res) => {
+app.get('/api/project/:projectId', async (req, res) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.projectId }
@@ -108,46 +120,62 @@ app.get('/api/template/:projectId', async (req, res) => {
     if (!project) {
       throw new Error("Project not found");
     }
-    // Enhance the prompt
-    const { text: enhancedPrompt } = await generateText({
-      model: llamaModel,
-      system: enhancerPrompt(),
-      prompt: project.name
+    // Fetch the project messages
+    const messages = await prisma.message.findMany({
+      where: {
+        projectId: project.id
+      }, orderBy: {
+        createdAt: 'asc'
+      }
     });
-    // Select the template
-    const { text: templateXML } = await generateText({
-      model: llamaModel,
-      system: starterTemplateSelectionPrompt(STARTER_TEMPLATES),
-      prompt: enhancedPrompt
-    });
-
-    const templateName = parseSelectedTemplate(templateXML);
-    // Indicates that LLM hasn't generated any template name. It doesn't happen mostly. 
-    if (!templateName) {
-      throw new Error("Error occurred while identifying a template");
-    }
-    // Check if the template is cached
-    const templatePath = path.join(__dirname, 'cache', `${templateName}.json`);
-    // Try to read from cache first
-    const templateData = await fs.access(templatePath)
-      .then(() => fs.readFile(templatePath, 'utf8'))
-      .then(data => JSON.parse(data))
-      .catch(async () => {
-        // If cache read fails, fetch from GitHub
-        const temResp = await getTemplates(templateName);
-        if (!temResp) {
-          throw new Error("Unable to initialize the project. Please try again with a different prompt.");
-        }
-        return {
-          enhancedPrompt,
-          ...temResp
-        };
+    // If the project has only one message and it's from the user
+    if (messages.length === 1 && messages[0].role === 'USER') {
+      // Enhance the prompt
+      const { text: enhancedPrompt } = await generateText({
+        model: llamaModel,
+        system: enhancerPrompt(),
+        prompt: project.name
+      });
+      // Select the template
+      const { text: templateXML } = await generateText({
+        model: llamaModel,
+        system: starterTemplateSelectionPrompt(STARTER_TEMPLATES),
+        prompt: enhancedPrompt
       });
 
-    res.json({
-      enhancedPrompt,
-      ...templateData
-    });
+      const templateName = parseSelectedTemplate(templateXML);
+      // Indicates that LLM hasn't generated any template name. It doesn't happen mostly. 
+      if (!templateName) {
+        throw new Error("Error occurred while identifying a template");
+      }
+      // Check if the template is cached
+      const templatePath = path.join(__dirname, 'cache', `${templateName}.json`);
+      // Try to read from cache first
+      const templateData = await fs.access(templatePath)
+        .then(() => fs.readFile(templatePath, 'utf8'))
+        .then(data => JSON.parse(data))
+        .catch(async () => {
+          // If cache read fails, fetch from GitHub
+          const temResp = await getTemplates(templateName);
+          if (!temResp) {
+            throw new Error("Unable to initialize the project. Please try again with a different prompt.");
+          }
+          return {
+            enhancedPrompt,
+            ...temResp
+          };
+        });
+
+      res.json({
+        enhancedPrompt,
+        ...templateData
+      })
+      return;
+    } else {
+      res.json({
+        messages
+      });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -164,7 +192,7 @@ app.post('/api/chat', async (req, res) => {
     });
     return;
   }
-  const { messages } = validation.data;
+  const { messages, projectId } = validation.data;
   pipeDataStreamToResponse(res, {
     execute: async dataStreamWriter => {
       const result = streamText({
@@ -173,9 +201,24 @@ app.post('/api/chat', async (req, res) => {
         messages: messages,
         experimental_transform: smoothStream(),
         maxTokens: MAX_TOKENS,
-        // onFinish({ text, finishReason, usage, response, reasoning }) {
-        // your own logic, e.g. for saving the chat history or recording usage
-        // const messages = response.messages; // messages that were generated
+        async onFinish({ text, finishReason, usage, response, reasoning }) {
+          try {
+            // Remove JSON markdown wrapper and parse
+            const jsonContent = JSON.parse(text.slice('```json\n'.length, -3));
+
+            await prisma.message.create({
+              data: {
+                role: 'ASSISTANT',
+                projectId: projectId,
+                createdAt: new Date(),
+                content: jsonContent // Use parsed JSON directly
+              }
+            });
+          } catch (error) {
+            console.error('Failed to parse JSON:', error);
+            throw error;
+          }
+        }
       });
       result.mergeIntoDataStream(dataStreamWriter, {
         sendReasoning: true,

@@ -8,8 +8,7 @@ export const messageSchema = z.object({
     content: z.string()
 });
 export const chatSchema = z.object({
+    projectId: z.string(),
     messages: z.array(messageSchema)
 });
-export type ChatMessage = z.infer<typeof messageSchema>;
 export type PromptSchema = z.infer<typeof promptSchema>;
-export type ChatSchema = z.infer<typeof chatSchema>;
