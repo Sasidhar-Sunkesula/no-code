@@ -27,6 +27,7 @@ export const Terminal = memo(({ className, onTerminalReady, onTerminalResize, re
             // theme: getTerminalTheme(readonly ? { cursor: '#00000000' } : {}),
             fontSize: 12,
             fontFamily: 'Menlo, courier-new, courier, monospace',
+            
         });
         terminalRef.current = terminal;
         terminal.loadAddon(fitAddon);
