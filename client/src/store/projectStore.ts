@@ -9,6 +9,7 @@ interface ProjectState {
     // messageId, actions
     actions: Map<string, ActionState[]>;
     currentMessageId: string | null;
+    ignorePatterns: string[];
     lastModified: number;
     selectedFile: string | null;
 
@@ -21,6 +22,7 @@ interface ProjectState {
     updateFile: (filePath: string, content: string) => void;
     setSelectedFile: (filePath: string | null) => void;
     updateProjectFiles: (files: FileAction[]) => void;
+    setIgnorePatterns: (patterns: string[]) => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
@@ -32,6 +34,7 @@ export const useProjectStore = create<ProjectState>()(
             lastModified: Date.now(),
             selectedFile: null,
             messageHistory: [],
+            ignorePatterns: [],
 
             upsertMessage: (message) =>
                 set((state) => {
@@ -73,6 +76,9 @@ export const useProjectStore = create<ProjectState>()(
 
             updateProjectFiles: (files) =>
                 set({ projectFiles: files }),
+
+            setIgnorePatterns: (patterns) =>
+                set({ ignorePatterns: patterns }),
 
             addAction: (messageId, action) =>
                 set((state) => {

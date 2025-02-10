@@ -1,4 +1,4 @@
-import { File, Folders } from "@repo/common/types";
+import { File, FileAction } from "@repo/common/types";
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { minimatch } from "minimatch";
@@ -11,21 +11,14 @@ export function removeTrailingNewlines(str: string): string {
   return str.replace(/(\n|\r|\r\n|```)+$/, '');
 };
 
-export function findFileContent(folders: Folders[], selectedFileName: string): string | undefined {
-  for (const item of folders) {
-    if (item.type === "file" && item.name === selectedFileName) {
-      return item.content; // Return the content if the file matches
-    }
-
-    if (item.type === "folder" && item.children) {
-      const result = findFileContent(item.children, selectedFileName); // Recursively search in children
-      if (result) {
-        return result; // Return the content if found in children
-      }
+export function findFileContent(files: FileAction[], selectedFileName: string): string | undefined {
+  for (const file of files) {
+    if (file.filePath === selectedFileName) {
+      return file.content
     }
   }
   return undefined; // Return undefined if not found
-}
+};
 
 export function projectFilesMsg(files: File[], ignorePatterns: string[]) {
   // Filter out files that match any of the ignore patterns

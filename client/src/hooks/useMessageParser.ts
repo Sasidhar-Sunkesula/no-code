@@ -1,7 +1,6 @@
 import { isNewFile, parseActions } from "@/lib/runtime";
 import { removeTrailingNewlines } from "@/lib/utils";
 import { actionExecutor } from "@/services/ActionExecutor";
-import { useGeneralStore } from "@/store/generalStore";
 import { useProjectStore } from "@/store/projectStore";
 import { FileAction, ShellAction } from "@repo/common/types";
 import type { Message } from "ai/react";
@@ -12,24 +11,22 @@ import { useShallow } from "zustand/react/shallow";
 export function useMessageParser() {
     const [streamingAction, setStreamingAction] = useState<FileAction | ShellAction | null>(null);
     const [lastStreamedAction, setLastStreamedAction] = useState<FileAction | ShellAction | null>(null);
-    const { selectedFileName, setSelectedFileName } = useGeneralStore(
-        useShallow(state => ({
-            selectedFileName: state.selectedFileName,
-            setSelectedFileName: state.setSelectedFileName,
-        }))
-    );
-    const { upsertMessage,
+    const { selectedFile,
+        currentMessageId,
+        projectFiles,
+        upsertMessage,
         addAction,
         updateActionStatus,
         updateProjectFiles,
         getActionStatus,
-        currentMessageId,
-        projectFiles
+        setSelectedFile,
     } = useProjectStore(
         useShallow(state => ({
-            upsertMessage: state.upsertMessage,
             currentMessageId: state.currentMessageId,
             projectFiles: state.projectFiles,
+            selectedFile: state.selectedFile,
+            upsertMessage: state.upsertMessage,
+            setSelectedFile: state.setSelectedFile,
             getActionStatus: state.getActionStatus,
             updateProjectFiles: state.updateProjectFiles,
             addAction: state.addAction,
@@ -146,12 +143,8 @@ export function useMessageParser() {
                 state: isNewFile(streamingAction.filePath, projectFiles) ? 'creating' : 'updating'
             });
         }
-        if (streamingAction.type === 'file' && streamingAction.filePath !== selectedFileName) {
-            // Get the file name from the file path
-            const currentStreamingFileName = streamingAction.filePath.split('/').at(-1);
-            if (currentStreamingFileName) {
-                setSelectedFileName(currentStreamingFileName);
-            }
+        if (streamingAction.type === 'file' && streamingAction.filePath !== selectedFile) {
+            setSelectedFile(streamingAction.filePath);
         }
     }, [streamingAction?.id]);
 

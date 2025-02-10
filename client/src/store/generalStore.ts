@@ -5,8 +5,6 @@ import { create } from 'zustand';
 export interface GeneralStoreState {
     webContainerInstance: WebContainer | null;
     setWebContainerInstance: (container: WebContainer | null) => void;
-    selectedFileName: string;
-    setSelectedFileName: (name: string) => void;
     terminal: XTerm | null,
     setTerminal: (terminal: XTerm) => void;
     shellProcess: WebContainerProcess | null;
@@ -20,8 +18,6 @@ export interface GeneralStoreState {
 export const useGeneralStore = create<GeneralStoreState>((set) => ({
     webContainerInstance: null,
     setWebContainerInstance: (container) => set({ webContainerInstance: container }),
-    selectedFileName: "",
-    setSelectedFileName: (name) => set({ selectedFileName: name }),
     terminal: null,
     setTerminal: (terminal) => set({ terminal }),
     shellProcess: null,

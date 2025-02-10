@@ -1,10 +1,12 @@
-import { FolderIcon } from "lucide-react";
-import { CodeEditor } from "./CodeEditor";
+import { buildHierarchy } from "@/lib/formatterHelpers";
 import { findFileContent } from "@/lib/utils";
+import { useProjectStore } from "@/store/projectStore";
 import { Folders } from "@repo/common/types";
-import { FolderComponent } from "./FolderComponent";
+import { FolderIcon } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
+import { CodeEditor } from "./CodeEditor";
 import { FileComponent } from "./FileComponent";
-import { useGeneralStore } from "@/store/generalStore";
+import { FolderComponent } from "./FolderComponent";
 
 function RenderStructure({ files }: { files: Folders[] }) {
     return (
@@ -21,6 +23,7 @@ function RenderStructure({ files }: { files: Folders[] }) {
                         <FileComponent
                             key={file.name}
                             name={file.name}
+                            filePath={file.filePath ?? file.name}
                         />
                     );
                 }
@@ -29,8 +32,14 @@ function RenderStructure({ files }: { files: Folders[] }) {
     );
 }
 
-export function FileExplorer({ folders }: { folders: Folders[] }) {
-    const selectedFileName = useGeneralStore((state) => state.selectedFileName);
+export function FileExplorer() {
+    const { projectFiles, selectedFile } = useProjectStore(
+        useShallow(state => ({
+            projectFiles: state.projectFiles,
+            selectedFile: state.selectedFile
+        }))
+    );
+    const folders = buildHierarchy(projectFiles);
     return (
         <div className="grid grid-cols-10 gap-x-2">
             <div className="col-span-2 bg-secondary rounded-sm flex flex-col px-1">
@@ -41,7 +50,7 @@ export function FileExplorer({ folders }: { folders: Folders[] }) {
                 <RenderStructure files={folders} />
             </div>
             <div className="col-span-8">
-                <CodeEditor code={findFileContent(folders, selectedFileName) ?? ""} />
+                <CodeEditor code={findFileContent(projectFiles, selectedFile ?? '') ?? ""} />
             </div>
         </div>
     )

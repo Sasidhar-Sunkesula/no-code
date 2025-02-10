@@ -116,10 +116,23 @@ app.get('/api/project/:projectId', async (req, res) => {
     const project = await prisma.project.findUnique({
       where: { id: req.params.projectId },
       include: {
-        files: true,
+        files: {
+          select: {
+            id: true,
+            filePath: true,
+            content: true,
+            timestamp: true
+          }
+        },
         messages: {
           orderBy: {
             createdAt: 'asc'
+          },
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            createdAt: true
           }
         }
       }
@@ -212,7 +225,7 @@ app.post('/api/chat', async (req, res) => {
     async onFinish({ text, finishReason, usage, response, reasoning }) {
       try {
         // Remove JSON markdown wrapper and parse
-        const jsonContent = text.slice('```json\n'.length, -3);
+        const jsonContent = JSON.parse(text.slice('```json\n'.length, -3)); // Parse the JSON string
         const currentMessage = messages.find(message => message.role === 'user' && message.id === 'currentMessage');
         await prisma.message.createMany({
           data: [
@@ -231,7 +244,7 @@ app.post('/api/chat', async (req, res) => {
           ]
         });
         // Update files
-        const { actions } = JSON.parse(jsonContent) as Artifact;
+        const { actions } = jsonContent?.artifact as Artifact;
         const files = actions.filter(action => action.type === 'file');
 
         files.forEach(async file => {

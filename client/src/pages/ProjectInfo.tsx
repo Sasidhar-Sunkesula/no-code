@@ -2,15 +2,13 @@ import { TabsSwitch } from "@/components/TabsSwitch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Workbench } from "@/components/Workbench";
-import { getWebContainer } from "@/config/webContainer";
+import { useInitProject } from "@/hooks/useInitProject";
 import { useMessageParser } from "@/hooks/useMessageParser";
 import { API_URL } from "@/lib/constants";
-import { constructMessages, mountFiles, startShell } from "@/lib/runtime";
-import { projectFilesMsg, projectInstructionsMsg } from "@/lib/utils";
+import { constructMessages, startShell } from "@/lib/runtime";
 import { useGeneralStore } from "@/store/generalStore";
 import { useProjectStore } from "@/store/projectStore";
-import { File } from "@repo/common/types";
-import { Message, useChat } from 'ai/react';
+import { useChat } from 'ai/react';
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
@@ -21,27 +19,25 @@ export default function ProjectInfo() {
     const params = useParams();
     const { webContainerInstance,
         terminal,
-        setWebContainerInstance,
         setShellProcess,
     } = useGeneralStore(
         useShallow(state => ({
             webContainerInstance: state.webContainerInstance,
             terminal: state.terminal,
             setShellProcess: state.setShellProcess,
-            setWebContainerInstance: state.setWebContainerInstance
         }))
     );
     const { messageHistory,
         projectFiles,
         currentMessageId,
-        updateProjectFiles,
+        ignorePatterns,
         upsertMessage,
         setCurrentMessageId,
     } = useProjectStore(
         useShallow(state => ({
             messageHistory: state.messageHistory,
             projectFiles: state.projectFiles,
-            updateProjectFiles: state.updateProjectFiles,
+            ignorePatterns: state.ignorePatterns,
             upsertMessage: state.upsertMessage,
             setCurrentMessageId: state.setCurrentMessageId,
             currentMessageId: state.currentMessageId
@@ -55,65 +51,21 @@ export default function ProjectInfo() {
         sendExtraMessageFields: true,
         experimental_throttle: 100,
         // onFinish: (message, { usage, finishReason }) => {
-        onFinish: () => {
-            // console.log('Finished streaming message:', message);
-            // console.log('Token usage:', usage);
-            // console.log('Finish reason:', finishReason);
-        },
+        // console.log('Finished streaming message:', message);
+        // console.log('Token usage:', usage);
+        // console.log('Finish reason:', finishReason);
+        // },
         onError: error => {
             console.error('An error occurred:', error);
             toast.error('There was an error processing your request');
-        },
-        // onResponse: response => {
-        // console.log('Received HTTP response from server:', response);
-        // }
+        }
     });
 
-    useEffect(() => {
-        async function initializeProject() {
-            try {
-                const response = await fetch(`${API_URL}/api/project/${params.projectId}`);
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.msg);
-                }
-                if (result.type === 'existing') {
-                    // const { messages } = result;
+    const { initializeProject } = useInitProject(setMessages, reload);
 
-                } else {
-                    const { enhancedPrompt, templateFiles, templatePrompt, ignorePatterns } = result;
-                    const messages = [
-                        { id: '1', role: 'user', content: projectFilesMsg(templateFiles, ignorePatterns) },
-                        ...(templatePrompt
-                            ? [
-                                { id: '2', role: 'user', content: templatePrompt },
-                                { id: '3', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }
-                            ]
-                            : [{ id: '2', role: 'user', content: projectInstructionsMsg(enhancedPrompt) }]
-                        )
-                    ];
-                    setMessages(messages as Message[]);
-                    reload();
-                    // Store template files in store
-                    setCurrentMessageId(crypto.randomUUID());
-                    upsertMessage({ id: crypto.randomUUID(), role: 'data', content: templatePrompt, timestamp: Date.now() });
-                    updateProjectFiles((templateFiles as File[]).map(file => ({
-                        id: crypto.randomUUID(),
-                        type: 'file',
-                        timestamp: Date.now(),
-                        filePath: file.filePath,
-                        content: file.content
-                    })));
-                    const container = await getWebContainer();
-                    await mountFiles(templateFiles, container);
-                    setWebContainerInstance(container);
-                }
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : "Error while initializing project"
-                toast.error(errorMessage)
-            }
-        }
-        initializeProject();
+    useEffect(() => {
+        if (!params.projectId) return;
+        initializeProject(params.projectId);
     }, [params.projectId]);
 
     useEffect(() => {
@@ -134,16 +86,17 @@ export default function ProjectInfo() {
 
     useEffect(() => {
         if (messages.length === 0) return;
-        const message = messages.at(-1);
-        if (!message) return;
-        handleNewMessage(message);
+        const recentMessage = messages.at(-1);
+        if (recentMessage) {
+            handleNewMessage(recentMessage);
+        }
     }, [messages]);
 
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         upsertMessage({ id: crypto.randomUUID(), role: 'user', content: input, timestamp: Date.now() });
         if (!currentMessageId || !projectFiles.length) return;
-        const newMessages = constructMessages(input, currentMessageId, projectFiles, messageHistory);
+        const newMessages = constructMessages(input, currentMessageId, projectFiles, messageHistory, ignorePatterns);
         setMessages(newMessages);
         reload();
         setCurrentMessageId(crypto.randomUUID());

@@ -6,24 +6,37 @@ export function buildHierarchy(files: File[]): Folders[] {
     files.forEach(({ filePath, content }) => {
         const parts = filePath.split("/");
         let currentFolder = root;
+        let currentPath = "";
 
         parts.forEach((part, index) => {
+            // Build the current path
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+
             if (index === parts.length - 1) {
-                // Add file to the current folder
+                // Add file to the current folder with full path
                 currentFolder.children = currentFolder.children || [];
-                currentFolder.children.push({ type: "file", name: part, content });
+                currentFolder.children.push({
+                    type: "file",
+                    name: part,
+                    content,
+                    filePath: currentPath
+                });
             } else {
-                // Ensure the folder exists
+                // Ensure the folder exists and add its path
                 currentFolder.children = currentFolder.children || [];
                 let folder = currentFolder.children.find(
                     (child) => child.type === "folder" && child.name === part
                 ) as Folders;
 
                 if (!folder) {
-                    folder = { type: "folder", name: part, children: [] };
+                    folder = {
+                        type: "folder",
+                        name: part,
+                        children: [],
+                        filePath: currentPath
+                    };
                     currentFolder.children.push(folder);
                 }
-
                 currentFolder = folder;
             }
         });

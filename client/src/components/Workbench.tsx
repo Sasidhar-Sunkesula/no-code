@@ -11,7 +11,7 @@ export function Workbench() {
         }))
     );
     const filteredMessageHistory = messageHistory.filter(
-        message => message.role === 'user' || message.role === 'assistant'
+        message => message.role === 'user' || message.role === 'assistant' 
     );
     return (
         <div style={{ scrollbarWidth: 'none' }} className="h-[75vh] overflow-y-auto space-y-3">
