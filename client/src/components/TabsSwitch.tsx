@@ -26,12 +26,11 @@ export function TabsSwitch() {
             </TabsList>
             <TabsContent value="code" className="space-y-3">
                 <FileExplorer />
-                <Terminal onTerminalReady={setTerminal} />
             </TabsContent>
             <TabsContent value="preview" className="h-full">
                 <PreviewCode />
             </TabsContent>
-            <div className={`${currentTab === "code" ? "block" : "hidden"} overflow-hidden`}>
+            <div className={`${currentTab === "code" ? "block" : "hidden"} overflow-hidden h-[400px]`}>
                 <Terminal onTerminalReady={setTerminal} />
             </div>
         </Tabs>

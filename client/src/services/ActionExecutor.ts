@@ -99,10 +99,14 @@ class ActionExecutor {
                     if (!this.deps.iframeURL) {
                         webContainer.on('server-ready', (port, url) => {
                             this.deps.setIframeURL(url);
-                            this.deps.setCurrentTab('preview')
+                            setTimeout(() => {
+                                this.deps.setCurrentTab('preview');
+                            }, 1000);
                         });
                     } else {
-                        this.deps.setCurrentTab('preview')
+                        setTimeout(() => {
+                            this.deps.setCurrentTab('preview');
+                        }, 1000);
                     }
                 } else {
                     throw new Error(`Failed to run command: ${action.command}`);
