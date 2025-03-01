@@ -14,12 +14,43 @@ datasource db {
 }
 
 model User {
-  id             String    @id // Using Clerk Id as the primary key
-  username       String    @unique
-  email          String    @unique
+  id             String         @id // Using Clerk Id as the primary key
+  username       String         @unique
+  email          String         @unique
   profilePicture String?
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime       @default(now())
   projects       Project[]
+  subscription   Subscription[]
+}
+
+model Plan {
+  type              Plans          @id @unique
+  dailyTokenLimit   Int
+  monthlyTokenLimit Int
+  price             Decimal
+  subscriptions     Subscription[]
+
+  @@index([type])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  planType           Plans
+  status             SubscriptionStatus
+  startDate          DateTime           @default(now())
+  endDate            DateTime
+  dailyTokensUsed    Int                @default(0)
+  dailyTokensReset   DateTime           @default(now())
+  monthlyTokensUsed  Int                @default(0)
+  monthlyTokensReset DateTime           @default(now())
+  paymentProvider    String?
+  paymentId          String?
+  user               User               @relation(fields: [userId], references: [id])
+  plan               Plan               @relation(fields: [planType], references: [type])
+
+  @@index([userId])
+  @@index([planType])
 }
 
 model Project {
@@ -29,7 +60,8 @@ model Project {
   userId    String
   files     File[]
   messages  Message[]
-  user      User      @relation(fields: [userId], references: [id])
+  // Deletes project if user is deleted
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -40,7 +72,8 @@ model File {
   content   String
   timestamp DateTime @default(now())
   projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  // Deletes files if project is deleted
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Add unique constraint for upsert
   @@unique([projectId, filePath])
@@ -48,12 +81,14 @@ model File {
 
 // Never update the createdAt field, only insert it once
 model Message {
-  id        String   @id @default(cuid())
-  role      Role
-  content   Json
-  createdAt DateTime @default(now())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  id         String   @id @default(cuid())
+  role       Role
+  content    Json
+  createdAt  DateTime @default(now())
+  projectId  String
+  tokensUsed Int      @default(0)
+  // Deletes messages if project is deleted
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([createdAt])
@@ -62,4 +97,16 @@ model Message {
 enum Role {
   user
   assistant
+}
+
+enum Plans {
+  free
+  pro
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  canceled
 }

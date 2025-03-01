@@ -1,3 +1,4 @@
+import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -10,6 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({
   limit: '10MB'
+}));
+app.use(clerkMiddleware({ 
+  clockSkewInMs: 10000,
 }));
 
 app.use('/api', projectRoutes);

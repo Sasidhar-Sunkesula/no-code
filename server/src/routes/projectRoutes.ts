@@ -1,17 +1,19 @@
-import { requireAuth } from '@clerk/express';
 import { promptSchema } from "@repo/common/zod";
 import prisma from "@repo/db/client";
 import { generateText } from "ai";
-import express from "express";
+import express, { Request, Response } from "express";
 import { STARTER_TEMPLATES } from "../constants";
+import { ensureUserExists } from "../middleware/ensureUser";
+import { resetLimits } from "../middleware/resetLimits";
 import { enhancerPrompt } from "../prompts/enhancerPrompt";
 import { parseSelectedTemplate, starterTemplateSelectionPrompt } from "../prompts/starterTemplateSelection";
 import { selectorModel } from "../providers";
 import { createProject, getProject, getTemplateData } from "../services/projectService";
+import { checkLimits } from "../services/subscriptionService";
 
 const router = express.Router();
 
-router.post('/new', requireAuth(), async (req, res) => {
+router.post('/new', ensureUserExists, resetLimits, async (req: Request, res: Response) => {
     const validation = promptSchema.safeParse(req.body);
     if (!validation.success) {
         res.status(400).json({
@@ -21,7 +23,14 @@ router.post('/new', requireAuth(), async (req, res) => {
     }
     const { prompt } = validation.data;
     try {
-        const newProject = await createProject(prompt, req.user?.id!);
+        // Check if the user has reached the limit
+        const limitsResult = checkLimits(req.plan!);
+
+        if (!limitsResult.success) {
+            throw new Error(limitsResult.message);
+        }
+
+        const newProject = await createProject(prompt, req.auth.userId!);
         res.json({
             projectId: newProject.id
         });
@@ -93,7 +102,7 @@ router.get('/project/:projectId', async (req, res) => {
     }
 });
 
-router.get('/projects', requireAuth(), async (req, res) => {
+router.get('/projects', ensureUserExists, async (req, res) => {
     const { page = '0', limit = '10' } = req.query;
     if (isNaN(Number(page)) || isNaN(Number(limit))) {
         res.status(400).json({
@@ -104,7 +113,7 @@ router.get('/projects', requireAuth(), async (req, res) => {
     try {
         const projects = await prisma.project.findMany({
             where: {
-                userId: req.user?.id!
+                userId: req.auth.userId!
             },
             select: {
                 id: true,

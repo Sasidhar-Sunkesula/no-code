@@ -9,7 +9,7 @@ import { Preview } from "./Preview";
 import { Terminal } from "./Terminal";
 import { Button } from "./ui/button";
 
-export function TabsSwitch() {
+export function TabsSwitch({ initializingProject }: { initializingProject: boolean }) {
     const { setTerminal, currentTab, setCurrentTab } = useGeneralStore(
         useShallow(state => ({
             setTerminal: state.setTerminal,
@@ -35,7 +35,7 @@ export function TabsSwitch() {
     return (
         <>
             <Toaster />
-            <div className="col-span-8 bg-gray-100 rounded-lg">
+            <div className={`col-span-8 bg-gray-100 rounded-lg ${initializingProject ? 'hidden': 'block'}`}>
                 <div className="flex items-center justify-between px-2 pt-2 pb-2 pr-6 border-b-2 rounded-t-lg">
                     <div className="flex items-center rounded-3xl space-x-1 h-8 bg-primary-foreground max-w-fit px-1 py-3">
                         <Button

@@ -9,10 +9,11 @@ import { MAX_TOKENS } from "../constants";
 import { getSystemPrompt } from "../prompts/systemPrompt";
 import { google2FlashModel } from "../providers";
 import { validateProjectOwnership } from "../services/projectService";
+import { ensureUserExists } from "../middleware/ensureUser";
 
 const router = express.Router();
 
-router.post('/chat', requireAuth(), async (req, res) => {
+router.post('/chat', ensureUserExists, async (req, res) => {
     const validation = chatSchema.safeParse(req.body);
     if (!validation.success) {
         res.status(400).json({
@@ -22,7 +23,7 @@ router.post('/chat', requireAuth(), async (req, res) => {
     }
     const { messages, projectId } = validation.data;
     // Validate ownership
-    await validateProjectOwnership(projectId, req.user?.id!);
+    await validateProjectOwnership(projectId, req.auth.userId!);
     const result = streamText({
         model: google2FlashModel,
         system: getSystemPrompt(),

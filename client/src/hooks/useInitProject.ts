@@ -17,7 +17,7 @@ export function useInitProject(
     setMessages: (messages: Message[] | ((messages: Message[]) => Message[])) => void,
     reload: () => Promise<string | null | undefined>
 ) {
-    const [fetchingProjects, setFetchingProjects] = useState(false);
+    const [initializingProject, setInitializingProject] = useState(false);
     const { authenticatedFetch } = useFetch();
     const { webContainer, setWebContainer } = usePreviewStore(
         useShallow(state => ({
@@ -43,7 +43,7 @@ export function useInitProject(
     );
     async function initializeProject(projectId: string) {
         try {
-            setFetchingProjects(true);
+            setInitializingProject(true);
             let container = webContainer;
             if (!container) {
                 container = await getWebContainer();
@@ -147,8 +147,8 @@ export function useInitProject(
             const errorMessage = error instanceof Error ? error.message : "Error while initializing project"
             toast.error(errorMessage)
         } finally {
-            setFetchingProjects(false);
+            setInitializingProject(false);
         }
     }
-    return { initializeProject, fetchingProjects }
+    return { initializeProject, initializingProject }
 }
