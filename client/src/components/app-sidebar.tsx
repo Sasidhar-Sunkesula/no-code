@@ -19,11 +19,11 @@ import { Loader2, MessageCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Logo } from "./Logo";
-import SubscriptionDialog from "./subscription-dialog";
 import { SearchForm } from "./search-form";
+import SubscriptionDialog from "./subscription-dialog";
 import { ModeToggle } from "./ui/mode-toggle";
 import { NavProjects } from "./ui/nav-projects";
-import { NavUser } from "./ui/nav-user";
+import { NavSettings } from "./nav-settings";
 
 export function AppSidebar() {
   const [isLoading, setIsLoading] = useState(true);
@@ -111,9 +111,17 @@ export function AppSidebar() {
               <NavProjects searchQuery={searchQuery} />
             </SidebarGroup>
           )}
+      </SidebarContent>
+      <SidebarRail />
+      <SidebarFooter>
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <NavSettings />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton>
                   <ModeToggle />
@@ -127,10 +135,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
-      <SidebarRail />
-      <SidebarFooter>
-        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

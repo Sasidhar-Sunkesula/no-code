@@ -1,18 +1,24 @@
 import { codeEditorOptions } from "@/config/codeEditorOptions";
 import { getLanguageExtension, SupportedLanguages } from "@/lib/getLanguageExtension";
 import { useFilesStore } from "@/store/filesStore";
+import { useGeneralStore } from "@/store/generalStore";
 import { EditorView } from "@codemirror/view";
 import { vscodeDark, vscodeLight } from "@uiw/codemirror-theme-vscode";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useEffect, useRef } from "react";
-import { useTheme } from "./ui/theme-provider";
 import { useShallow } from "zustand/react/shallow";
+import { useTheme } from "./ui/theme-provider";
 
 export function CodeEditor({ code, language = 'javascript' }: {
     code: string,
     language?: SupportedLanguages
 }) {
     const { theme } = useTheme();
+    const { wordWrap } = useGeneralStore(
+        useShallow(state => ({
+            wordWrap: state.wordWrap
+        }))
+    );
     const { updateFile, selectedFile } = useFilesStore(
         useShallow(state => ({
             updateFile: state.updateFile,
@@ -42,7 +48,7 @@ export function CodeEditor({ code, language = 'javascript' }: {
             theme={theme === 'dark' ? vscodeDark : vscodeLight}
             extensions={[
                 getLanguageExtension(language),
-                EditorView.lineWrapping,
+                ...(wordWrap ? [EditorView.lineWrapping] : [])
             ]}
             onChange={(value) => {
                 if (selectedFile) {

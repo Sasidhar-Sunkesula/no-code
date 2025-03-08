@@ -11,6 +11,7 @@ export const messageSchema = z.object({
 });
 export const chatSchema = z.object({
     projectId: z.string(),
+    reasoning: z.boolean(),
     messages: z.array(messageSchema)
 });
 export const saveFileSchema = z.object({

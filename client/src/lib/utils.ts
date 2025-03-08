@@ -1,6 +1,7 @@
-import { File, FileAction } from "@repo/common/types";
+import { File, FileAction, stripIndents } from "@repo/common/types";
 import { clsx, type ClassValue } from "clsx";
 import { minimatch } from "minimatch";
+import toast from "react-hot-toast";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -25,7 +26,7 @@ export function projectFilesMsg(files: File[], ignorePatterns: string[]) {
   const filteredFiles = ignorePatterns
     ? files.filter(file => !ignorePatterns.some(pattern => minimatch(file.filePath, pattern)))
     : files;
-  return `Project Files:
+  return stripIndents`Project Files:
 The following is a list of all project files and their complete contents that are currently visible and accessible to you.
 ${filteredFiles.map(file => `
   ${file.filePath}:
@@ -38,7 +39,7 @@ ${files.filter(file => !filteredFiles.includes(file)).
       .join(', ')}`
 };
 
-export const projectInstructionsMsg = (enhancedPrompt: string) => `
+export const projectInstructionsMsg = (enhancedPrompt: string) => stripIndents`
 ⚠️ STRICT IMPLEMENTATION REQUIREMENTS
 
 1. ORDER OF OPERATIONS
@@ -70,7 +71,7 @@ export const projectInstructionsMsg = (enhancedPrompt: string) => `
    - Each file must be production-ready
 
 5. EXECUTION SEQUENCE
-   Step 1: Dependencies
+   Step 1: Dependencies (Remember: By default, the packages are not installed)
    - Run appropriate install command (Ex: npm install, yarn install, pnpm install, etc.)
    
    Step 2: Development
@@ -105,7 +106,7 @@ Treat these as strict requirements. Any deviation will result in rejection.`;
 
 
 export function chatHistoryMsg() {
-  return `Below is the conversation history, including all previous messages along with the most recent assistant response. 
+  return stripIndents`Below is the conversation history, including all previous messages along with the most recent assistant response. 
 Please reference this context to inform your future responses and maintain conversation continuity. Only install dependencies if the dependency management file (Ex:package.json) has been updated. But, always give the appropriate application start command.`
 };
 
@@ -132,3 +133,15 @@ export const planDetails = {
     features: ["250K tokens per day", "10Million tokens per month", "Advanced features"],
   }
 }
+
+export function customToast(msg: string) {
+  return toast.error(msg, {
+    style: {
+      borderRadius: '25px',
+      background: '#333',
+      color: '#fff',
+      paddingTop: '3px',
+      paddingBottom: '3px',
+    },
+  })
+};

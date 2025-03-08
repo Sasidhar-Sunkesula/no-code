@@ -47,8 +47,8 @@ export async function updateSubscription(planInfo: PlanInfo) {
         await prisma.subscription.update({
             where: { id: planInfo.subscriptionId },
             data: {
-                monthlyTokensUsed: planInfo.monthlyTokensUsed,
-                dailyTokensUsed: planInfo.dailyTokensUsed,
+                monthlyTokensUsed: planInfo.monthlyTokensUsed >=0 ? planInfo.monthlyTokensUsed : 0,
+                dailyTokensUsed: planInfo.dailyTokensUsed >=0 ? planInfo.dailyTokensUsed : 0,
                 monthlyTokensReset: planInfo.monthlyTokensReset,
                 dailyTokensReset: planInfo.dailyTokensReset
             },

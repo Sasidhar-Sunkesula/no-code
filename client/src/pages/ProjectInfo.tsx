@@ -6,6 +6,7 @@ import { useInitProject } from "@/hooks/useInitProject";
 import { useMessageParser } from "@/hooks/useMessageParser";
 import { API_URL } from "@/lib/constants";
 import { constructMessages, startShell } from "@/lib/runtime";
+import { customToast } from "@/lib/utils";
 import { useFilesStore } from "@/store/filesStore";
 import { useGeneralStore } from "@/store/generalStore";
 import { usePreviewStore } from "@/store/previewStore";
@@ -13,16 +14,17 @@ import { useProjectStore } from "@/store/projectStore";
 import { useChat } from 'ai/react';
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import { useParams } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 
 export default function ProjectInfo() {
     const params = useParams();
-    const { terminal, setShellProcess } = useGeneralStore(
+    const { terminal, setShellProcess, reasoning } = useGeneralStore(
         useShallow(state => ({
             terminal: state.terminal,
-            setShellProcess: state.setShellProcess
+            setShellProcess: state.setShellProcess,
+            reasoning: state.reasoning
         }))
     );
     const { webContainer } = usePreviewStore(
@@ -58,20 +60,21 @@ export default function ProjectInfo() {
     const { messages, input, setInput, error, isLoading, stop, reload, setMessages } = useChat({
         api: `${API_URL}/api/chat`,
         body: {
-            projectId: params.projectId
+            projectId: params.projectId,
+            reasoning
         },
         fetch: customFetch,
         sendExtraMessageFields: true,
         experimental_throttle: 100,
         onFinish: async (_, { finishReason }) => {
             if (finishReason !== 'stop') {
-                toast.error('An error occurred while processing your request. Please try again.');
+                customToast('An error occurred while processing your request. Please try again.');
                 return;
             }
             setRefreshTokens(!refreshTokens);
         },
         onError: error => {
-            toast.error(JSON.parse(error.message)?.msg ??
+            customToast(JSON.parse(error.message)?.msg ??
                 'An error occurred while processing your request. Please try again.'
             );
         }
@@ -128,9 +131,9 @@ export default function ProjectInfo() {
                         <Loader2 className="animate-spin size-5" />
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-y-3 col-span-4">
+                    <div className="flex flex-col gap-y-5 col-span-4">
                         <Workbench />
-                        <div>
+                        <div className="flex-1">
                             <ChatInput
                                 placeholder="How can we refine it..."
                                 handleSubmit={handleSubmit}

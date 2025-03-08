@@ -114,5 +114,6 @@ enum SubscriptionStatus {
 
 enum ProjectState {
   new
+  inProgress
   existing
 }

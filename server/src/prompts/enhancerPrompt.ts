@@ -1,5 +1,7 @@
+import { stripIndents } from "@repo/common/types";
+
 export const enhancerPrompt = () =>
-  `You are a professional prompt engineer specializing in crafting precise, effective prompts.
+  stripIndents`You are a professional prompt engineer specializing in crafting precise, effective prompts.
 Your task is to enhance prompts by making them more specific, actionable, and effective.
 
 First, determine if the prompt is project-related or not i.e., conversational or unrelated to projects:

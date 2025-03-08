@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json({
   limit: '10MB'
 }));
-app.use(clerkMiddleware({ 
+app.use(clerkMiddleware({
   clockSkewInMs: 10000,
 }));
 

@@ -1,11 +1,15 @@
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import useFetch from "@/hooks/useFetch";
+import { API_URL } from "@/lib/constants";
+import { formatNumber } from "@/lib/formatterHelpers";
+import { cn, customToast } from "@/lib/utils";
 import { useProjectStore } from "@/store/projectStore";
-import { CircleStop, CornerDownLeft, RotateCcw } from "lucide-react";
-import { memo } from "react";
+import { CircleStop, CornerDownLeft, RotateCcw, WandSparkles } from "lucide-react";
+import { motion } from "motion/react";
+import { memo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
 
 interface ButtonConfig {
     show: boolean;
@@ -32,6 +36,8 @@ export const ChatInput = memo(({
     stop?: () => void
     error?: Error | undefined
 }) => {
+    const { authenticatedFetch } = useFetch();
+    const [enhancing, setEnhancing] = useState(false);
     const buttonConfigs: ButtonConfig[] = [
         {
             show: Boolean(!isLoading),
@@ -49,6 +55,27 @@ export const ChatInput = memo(({
             onClick: reload || (() => { })
         }
     ];
+
+    async function handleEnhancePrompt() {
+        try {
+            const result = await authenticatedFetch(`${API_URL}/api/enhance-prompt`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: input })
+            });
+            setInput(result.enhancedPrompt);
+        } catch (error) {
+            customToast(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to enhance prompt'
+            );
+        } finally {
+            setEnhancing(false);
+        }
+    }
 
     const { subscriptionData } = useProjectStore(
         useShallow(state => ({
@@ -82,12 +109,12 @@ export const ChatInput = memo(({
     return (
         <div className="relative">
             {subscriptionData && (
-                <div className="absolute w-11/12 left-1/2 -translate-x-1/2 shadow-md shadow-sky-600 dark:shadow-sky-400 text-center -top-5 px-2 border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 rounded-t-md text-sm">
-                    {(subscriptionData.tokenUsage.daily.limit - subscriptionData.tokenUsage.daily.used).toLocaleString()}
+                <div className="absolute w-11/12 left-1/2 -translate-x-1/2 shadow-md shadow-sky-600 dark:shadow-sky-400 text-center -top-5 px-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 rounded-t-md text-sm">
+                    {formatNumber(subscriptionData.tokenUsage.daily.limit - subscriptionData.tokenUsage.daily.used)}
                     {' '}
                     daily tokens left out of
                     {' '}
-                    {subscriptionData.tokenUsage.daily.limit.toLocaleString()}
+                    {formatNumber(subscriptionData.tokenUsage.daily.limit)}
                     {' '}
                     tokens
                 </div>
@@ -101,7 +128,7 @@ export const ChatInput = memo(({
                 <Textarea
                     rows={5}
                     className={cn(
-                        "relative pl-4 pr-10 py-3 rounded-lg",
+                        "relative pl-4 pr-12 py-2 rounded-lg",
                         "transition-shadow duration-300",
                         "focus:ring-2 focus:ring-offset-2 focus:ring-offset-background",
                         "bg-white dark:bg-slate-900 text-black dark:text-white"
@@ -117,11 +144,25 @@ export const ChatInput = memo(({
                     }}
                 />
             </motion.div>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger
+                        disabled={enhancing}
+                        onClick={handleEnhancePrompt}
+                        className="absolute left-5 bottom-4 border-sky-400 dark:border-sky-600 text-sky-700 dark:text-sky-400"
+                    >
+                        <WandSparkles className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Enhance prompt</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
             {activeButton && (
                 <Button
                     size="sm"
                     onClick={activeButton.onClick}
-                    className="absolute bottom-3 right-2"
+                    className="absolute top-3 right-2"
                 >
                     {activeButton.icon}
                 </Button>

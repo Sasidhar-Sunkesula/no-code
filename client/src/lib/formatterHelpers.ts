@@ -73,3 +73,7 @@ export function formatProjectsByDate(projects: Project[]) {
     });
     return formattedProjects;
 }
+
+export const formatNumber = (num: number) => {
+    return num >= 1000 ? Math.round(num / 1000) + 'K' : num;
+};

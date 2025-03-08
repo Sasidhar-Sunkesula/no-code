@@ -26,7 +26,7 @@ export function Workbench() {
     );
 
     return (
-        <div style={{ scrollbarWidth: 'none' }} className="h-[75vh] overflow-y-auto space-y-3">
+        <div style={{ scrollbarWidth: 'none' }} className="md:h-[70vh] overflow-y-auto space-y-3">
             {filteredMessageHistory.map((message) =>
                 message.role === 'user'
                     ? <UserMessage

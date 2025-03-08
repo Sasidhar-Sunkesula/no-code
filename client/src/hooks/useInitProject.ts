@@ -1,7 +1,7 @@
 import { getWebContainer } from "@/config/webContainer";
 import { API_URL } from "@/lib/constants";
 import { getImportArtifact, mountFiles } from "@/lib/runtime";
-import { projectFilesMsg, projectInstructionsMsg } from "@/lib/utils";
+import { customToast, projectFilesMsg, projectInstructionsMsg } from "@/lib/utils";
 import { actionExecutor } from "@/services/ActionExecutor";
 import { useFilesStore } from "@/store/filesStore";
 import { usePreviewStore } from "@/store/previewStore";
@@ -10,7 +10,6 @@ import { Artifact, ExistingProject, FileAction, NewProject, ShellAction } from "
 import type { WebContainer } from "@webcontainer/api";
 import { Message } from 'ai/react';
 import { useState } from "react";
-import toast from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 import useFetch from "./useFetch";
 
@@ -129,14 +128,14 @@ export function useInitProject(
                     if (!container) throw new Error("WebContainer not initialized");
                     await initializeNewProject(projectId, container);
                 } catch (genError) {
-                    toast.error(genError instanceof Error
+                    customToast(genError instanceof Error
                         ? genError.message
                         : "Something went wrong while generating project"
                     );
                 }
             } else {
                 const errorMessage = error instanceof Error ? error.message : "Error while initializing project";
-                toast.error(errorMessage);
+                customToast(errorMessage);
             }
         } finally {
             setInitializingProject(false);

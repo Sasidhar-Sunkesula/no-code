@@ -45,7 +45,7 @@ router.get('/project/:projectId', async (req, res) => {
             res.status(404).json({ msg: "Project not found" });
             return;
         }
-        if (project.state === 'new') {
+        if (project.state !== 'existing') {
             throw new Error("Project has not been initialized. Please generate a new project.");
         }
 
@@ -54,7 +54,6 @@ router.get('/project/:projectId', async (req, res) => {
             projectFiles: project.files,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({
             msg: error instanceof Error ? error.message : "Failed to retrieve project"
         });
@@ -64,7 +63,6 @@ router.get('/project/:projectId', async (req, res) => {
 // Route to generate a new project - requires auth + subscription
 router.post('/project/:projectId/generate', ensureUserExists, resetLimits, async (req, res) => {
     const { projectId } = req.params;
-
     try {
         // Validate project state
         const project = await getProject(projectId);
@@ -73,10 +71,9 @@ router.post('/project/:projectId/generate', ensureUserExists, resetLimits, async
             return;
         }
 
-        if (
-            project.messages.length !== 1
+        if (project.messages.length !== 1
             || project.messages[0].role !== 'user'
-            || project.state !== 'new'
+            || project.state === 'existing'
         ) {
             res.status(400).json({ msg: "Project already generated" });
             return;
@@ -126,7 +123,7 @@ router.post('/project/:projectId/generate', ensureUserExists, resetLimits, async
         await prisma.project.update({
             where: { id: projectId },
             data: {
-                state: 'existing',
+                state: 'inProgress',
                 name: projectTitle ?? project.name.slice(0, 25),
             }
         });
@@ -167,6 +164,10 @@ router.get('/projects', ensureUserExists, resetLimits, async (req, res) => {
         res.status(400).json({
             msg: "Invalid page or limit",
         });
+        return;
+    }
+    if (!req.plan) {
+        res.status(403).json({ msg: "Unable to get token limits for the user" });
         return;
     }
     try {

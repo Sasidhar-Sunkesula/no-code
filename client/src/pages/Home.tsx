@@ -1,8 +1,8 @@
 import { PromptInput } from "@/components/PromptInput";
 import { BackgroundDots } from "@/components/ui/background-dots";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },

@@ -1,9 +1,10 @@
 import useFetch from "@/hooks/useFetch";
 import { API_URL } from "@/lib/constants";
+import { customToast } from "@/lib/utils";
 import { useProjectStore } from "@/store/projectStore";
 import { PromptSchema } from "@repo/common/zod";
 import { useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { ChatInput } from "./ChatInput";
@@ -38,7 +39,7 @@ export function PromptInput() {
             navigate(`/project/${data.projectId}`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Error while getting files"
-            toast.error(errorMessage)
+            customToast(errorMessage)
         } finally {
             setIsLoading(false);
         }

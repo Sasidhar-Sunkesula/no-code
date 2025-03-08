@@ -2,6 +2,7 @@ import { isNewFile, parseActions } from "@/lib/runtime";
 import { removeTrailingNewlines } from "@/lib/utils";
 import { actionExecutor } from "@/services/ActionExecutor";
 import { useFilesStore } from "@/store/filesStore";
+import { useGeneralStore } from "@/store/generalStore";
 import { useProjectStore } from "@/store/projectStore";
 import { FileAction, ShellAction } from "@repo/common/types";
 import type { Message } from "ai/react";
@@ -32,6 +33,11 @@ export function useMessageParser() {
             selectedFile: state.selectedFile,
             setSelectedFile: state.setSelectedFile,
             updateProjectFiles: state.updateProjectFiles,
+        }))
+    );
+    const { setCurrentTab } = useGeneralStore(
+        useShallow(state => ({
+            setCurrentTab: state.setCurrentTab
         }))
     );
 
@@ -108,8 +114,9 @@ export function useMessageParser() {
             return;
         }
         const startIndex = message.content.indexOf('{');
-        if (startIndex === -1) return;
-        const trimmedJSON = removeTrailingNewlines(message.content.slice(startIndex));
+        const trimmedJSON = startIndex !== -1
+            ? removeTrailingNewlines(message.content.slice(startIndex))
+            : '';
         try {
             upsertMessage({
                 id: currentMessageId,
@@ -118,6 +125,7 @@ export function useMessageParser() {
                 reasoning: message.reasoning,
                 timestamp: Date.now()
             });
+            setCurrentTab('code');
             const parsedMessage = parseMessage(trimmedJSON);
             if (!parsedMessage) {
                 return;

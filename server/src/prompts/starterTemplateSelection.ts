@@ -1,7 +1,7 @@
+import { HeadersInit, stripIndents } from "@repo/common/types";
 import { STARTER_TEMPLATES, StarterTemplate } from "../constants";
-import { HeadersInit } from "@repo/common/types";
 
-export const starterTemplateSelectionPrompt = (templates: StarterTemplate[]) => `
+export const starterTemplateSelectionPrompt = (templates: StarterTemplate[]) => stripIndents`
 You are an experienced developer who helps people choose the best starter template for their projects.
 
 Available templates:

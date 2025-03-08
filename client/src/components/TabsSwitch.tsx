@@ -8,6 +8,7 @@ import { FileExplorer } from "./FileExplorer";
 import { Preview } from "./Preview";
 import { Terminal } from "./Terminal";
 import { Button } from "./ui/button";
+import { customToast } from "@/lib/utils";
 
 export function TabsSwitch({ initializingProject }: { initializingProject: boolean }) {
     const { setTerminal, currentTab, setCurrentTab } = useGeneralStore(
@@ -35,7 +36,7 @@ export function TabsSwitch({ initializingProject }: { initializingProject: boole
     return (
         <>
             <Toaster />
-            <div className={`col-span-8 bg-gray-100 dark:bg-gray-800 rounded-lg ${initializingProject ? 'hidden': 'block'}`}>
+            <div className={`col-span-8 bg-gray-100 dark:bg-gray-800 rounded-lg ${initializingProject ? 'hidden' : 'block'}`}>
                 <div className="flex items-center justify-between px-2 pt-2 pb-2 pr-6 rounded-t-lg">
                     <div className="flex items-center rounded-3xl space-x-1 h-8 bg-primary-foreground max-w-fit px-1 py-3">
                         <Button
@@ -64,7 +65,7 @@ export function TabsSwitch({ initializingProject }: { initializingProject: boole
                                     if (result.success) {
                                         toast.success('File saved successfully');
                                     } else {
-                                        toast.error(result?.error);
+                                        customToast(result?.error || 'Failed to save file');
                                     }
                                 }
                             }}
@@ -83,17 +84,17 @@ export function TabsSwitch({ initializingProject }: { initializingProject: boole
                         </Button>
                     </div>
                 </div>
-                
+
                 {/* Code tab content */}
                 <div className={`${currentTab === 'code' ? 'block' : 'hidden'}`}>
                     <FileExplorer />
                 </div>
-                
+
                 {/* Preview tab content */}
                 <div className={`h-[calc(95vh-5rem)] ${currentTab === 'preview' ? 'block' : 'hidden'}`}>
                     <Preview />
                 </div>
-                
+
                 {/* Terminal (only visible in code tab) */}
                 <div className={`overflow-hidden h-[20vh] ${currentTab === 'code' ? 'block' : 'hidden'}`}>
                     <Terminal onTerminalReady={setTerminal} />

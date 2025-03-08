@@ -26,7 +26,7 @@ export function AssistantResponse({ content, actions, reasoning }: { content: st
                     </div>
                 </Button>
             }
-            {isExpanded && <div className="bg-primary-foreground px-4 py-2">{reasoning}</div>}
+            {isExpanded && <div className="bg-primary-foreground px-2 py-2 text-sm italic">{reasoning}</div>}
             <div className="break-words overflow-wrap-anywhere min-w-0 flex-1">
                 {parseContent(content)?.artifact?.initialContext ?? ''}
             </div>
