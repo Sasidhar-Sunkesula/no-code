@@ -2,25 +2,32 @@ name: Frontend Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install Dependencies
         run: |
-          rm -rf node_modules package-lock.json
           npm install
+
+      - name: Create .env
+        run: |
+          echo "VITE_API_URL=${{ secrets.API_URL }}" >> client/.env
+          echo "VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }}" >> client/.env
+
+      - name: Build the project
+        run: |
           cd client
           npm run build
 
