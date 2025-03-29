@@ -19,7 +19,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install
+          rm -rf node_modules package-lock.json
+          npm ci
 
       - name: Create .env
         run: |
