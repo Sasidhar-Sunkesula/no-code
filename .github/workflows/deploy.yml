@@ -1,0 +1,80 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: |
+          rm -rf package-lock.json
+          npm install --production
+
+      # Build client
+      - name: Build frontend
+        run: |
+          echo "NODE_ENV=production" > client/.env
+          echo "VITE_API_URL=${{ secrets.API_URL }}" >> client/.env
+          echo "VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }}" >> client/.env
+          npm run build:client
+
+      # Add DB URL
+      - name: Add DB URL
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> packages/db/.env
+
+      # Build server
+      - name: Build backend
+        run: |
+          echo "GITHUB_ACCESS_TOKEN=${{ secrets.ACCESS_TOKEN }}" > server/.env
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> server/.env
+          echo "GOOGLE_GENERATIVE_AI_API_KEY=${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}" >> server/.env
+          echo "OVH_API_KEY=${{ secrets.OVH_API_KEY }}" >> server/.env
+          echo "NINETEEN_API_KEY=${{ secrets.NINETEEN_API_KEY }}" >> server/.env
+          echo "NOVITA_API_KEY=${{ secrets.NOVITA_API_KEY }}" >> server/.env
+          echo "CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}" >> server/.env
+          echo "CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }}" >> server/.env
+          echo "NODE_ENV=production" >> server/.env
+          echo "PORT=3000" >> server/.env
+          npm run build:server
+
+      # SSH into EC2 instance
+      - name: Copy files into EC2 instance
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "./no-code"
+
+      # Deploy to VM
+      - name: SSH into EC2 instance and deploy with pm2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd no-code
+            sudo npm install -g pm2 serve
+            pm2 stop no-code-client || true
+            pm2 stop no-code-server || true
+            pm2 delete no-code-client || true
+            pm2 delete no-code-server || true
+            pm2 start serve -n no-code-client -- client/dist --listen 5173
+            pm2 start node server/dist/index.js -n no-code-server
+            pm2 save
+            sudo systemctl restart nginx
